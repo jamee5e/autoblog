@@ -48,10 +48,6 @@ app.get("/system-logs", (_req, res) => {
   res.sendFile(path.join(publicDirectory, "system-logs.html"));
 });
 
-app.get("/project-progress", (_req, res) => {
-  res.sendFile(path.join(publicDirectory, "project-progress.html"));
-});
-
 app.get("/articles", (_req, res) => {
   res.sendFile(path.join(publicDirectory, "articles.html"));
 });
