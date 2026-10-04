@@ -1,60 +1,68 @@
-# autoblog
+# KSD Auto Blog Platform
 
-KSD Auto Blog backend service.
+Internal content platform for Khao Sok Discovery.
 
-## WordPress Integration (Phase 2)
+## Architecture
 
-### Environment
+- Backend: Node.js + TypeScript + Express
+- Database: PostgreSQL + Prisma
+- Frontend: Vue 3 + Vite + Pinia + Vue Router + Axios
 
-Required:
+The existing Express API remains the source of truth. The Vue application lives in `frontend/` and talks to the backend through Vite's development proxy.
 
-- `DATABASE_URL`
-- `JWT_SECRET`
-- `JWT_EXPIRES_IN` (optional, default: `12h`)
-- `ENCRYPTION_KEY` (used to encrypt WordPress Application Passwords before database storage)
-- `SEED_ADMIN_EMAIL` (required for seed)
-- `SEED_ADMIN_PASSWORD` (required for seed)
+## Local development
 
-### Database setup
+### 1. Start PostgreSQL
 
 ```bash
-npm run db:generate
-npm run db:migrate
-npm run db:seed
+npm run db:up
 ```
 
-### Available API endpoints
+### 2. Start the backend
 
-- `POST /api/auth/login`
-- `GET /api/auth/me`
-- `POST /api/websites`
-- `GET /api/websites`
-- `GET /api/websites/:id`
-- `PUT /api/websites/:id`
-- `POST /api/websites/:id/test-connection`
-- `POST /api/websites/:id/test-draft`
-- `GET /api/system-logs`
-- `GET /api/articles`
-- `GET /api/articles/:id`
-- `GET /api/articles/permissions`
+The backend runs on port `3000`.
 
-### Frontend routes
+If your local branch already uses `tsx`:
+
+```bash
+npm run dev
+```
+
+If the repository still has the legacy `ts-node-dev` runner with TypeScript 7, update the local dev runner to `tsx` before starting the backend.
+
+### 3. Install and start the Vue frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open:
+
+```text
+http://localhost:5173/login
+```
+
+Vite proxies `/api` and `/health` to `http://localhost:3000`.
+
+## Vue routes
 
 - `/login`
 - `/dashboard`
-- `/websites`
-- `/system-logs`
+- `/generate`
 - `/articles`
-- `/articles/preview?id=<articleId>`
+- `/articles/:id`
+- `/websites`
+- `/project-progress`
+- `/system-logs`
+- `/settings`
 
-### Notes
+## Phase 2 status
 
-- Authentication uses JWT bearer tokens.
-- `/api/websites/*`, `/api/companies/*`, and `/api/articles/*` require authentication.
-- Website access is company-scoped by authenticated user company.
-- `ADMIN` can manage WordPress website configuration and connection testing.
-- `EDITOR` has read-only access to website listing/details and can use article routes (when implemented).
-- Frontend currently stores JWT in `sessionStorage` for development.
-- WordPress URLs are validated as `https://...` and normalized before storage.
-- WordPress REST base URL is built as: `<wordpressUrl>/wp-json/wp/v2`
-- WordPress Application Passwords are encrypted at rest and never returned by APIs.
+Phase 2 development is prepared but is not complete until both real KSD WordPress websites:
+
+1. pass Test Connection
+2. create a real Draft post successfully
+
+AI providers are intentionally not connected yet. Phase 3 begins after the WordPress acceptance tests pass.
