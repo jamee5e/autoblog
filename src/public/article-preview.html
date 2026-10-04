@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>KSD Auto Blog - Article Preview</title>
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="sidebar">
+        <h2>KSD Auto Blog</h2>
+        <a href="/dashboard">Dashboard</a>
+        <a href="/websites">Websites</a>
+        <a href="/system-logs">System Logs</a>
+        <a class="active" href="/articles">Articles</a>
+        <button id="logoutButton" class="secondary">Logout</button>
+      </aside>
+      <main class="content">
+        <div class="card">
+          <div class="title-row">
+            <h1>Article Preview</h1>
+            <a href="/articles">Back to Articles</a>
+          </div>
+
+          <div id="previewMessage" class="message"></div>
+          <p><strong>Title:</strong> <span id="articleTitle">-</span></p>
+          <p><strong>Meta Description:</strong> <span id="metaDescription">-</span></p>
+          <p><strong>SEO Score:</strong> <span id="seoScore">-</span></p>
+          <p><strong>Status:</strong> <span id="articleStatus">-</span></p>
+
+          <h3>Article Content</h3>
+          <div id="articleContent" class="card" style="background: #f9fafb"></div>
+
+          <div class="actions">
+            <button type="button">Edit</button>
+            <button type="button" disabled>Regenerate</button>
+            <button type="button" disabled>Save Draft</button>
+            <button type="button" disabled>Publish</button>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script type="module" src="/assets/js/article-preview.js"></script>
+  </body>
+</html>

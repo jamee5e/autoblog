@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>KSD Auto Blog - Articles</title>
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="sidebar">
+        <h2>KSD Auto Blog</h2>
+        <a href="/dashboard">Dashboard</a>
+        <a href="/websites">Websites</a>
+        <a href="/system-logs">System Logs</a>
+        <a class="active" href="/articles">Articles</a>
+        <button id="logoutButton" class="secondary">Logout</button>
+      </aside>
+      <main class="content">
+        <div class="card">
+          <h1>Articles</h1>
+          <p id="emptyState" style="display: none">No articles generated yet.</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Website</th>
+                <th>Primary Keyword</th>
+                <th>SEO Score</th>
+                <th>Status</th>
+                <th>Created At</th>
+                <th>Preview</th>
+              </tr>
+            </thead>
+            <tbody id="articlesBody"></tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+    <script type="module" src="/assets/js/articles.js"></script>
+  </body>
+</html>

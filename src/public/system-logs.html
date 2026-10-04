@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>KSD Auto Blog - System Logs</title>
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="sidebar">
+        <h2>KSD Auto Blog</h2>
+        <a href="/dashboard">Dashboard</a>
+        <a href="/websites">Websites</a>
+        <a class="active" href="/system-logs">System Logs</a>
+        <a href="/articles">Articles</a>
+        <button id="logoutButton" class="secondary">Logout</button>
+      </aside>
+      <main class="content">
+        <div class="card">
+          <h1>System Logs</h1>
+          <form id="filtersForm" class="actions">
+            <label>
+              Module
+              <input id="module" placeholder="wordpress" />
+            </label>
+            <label>
+              Level
+              <select id="level">
+                <option value="">All</option>
+                <option value="DEBUG">DEBUG</option>
+                <option value="INFO">INFO</option>
+                <option value="WARN">WARN</option>
+                <option value="ERROR">ERROR</option>
+              </select>
+            </label>
+            <button type="submit">Apply Filters</button>
+          </form>
+          <div id="logsMessage" class="message"></div>
+          <table>
+            <thead>
+              <tr>
+                <th>Date/Time</th>
+                <th>Level</th>
+                <th>Module</th>
+                <th>Message</th>
+              </tr>
+            </thead>
+            <tbody id="logsBody"></tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+    <script type="module" src="/assets/js/system-logs.js"></script>
+  </body>
+</html>

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>KSD Auto Blog - Websites</title>
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="sidebar">
+        <h2>KSD Auto Blog</h2>
+        <a href="/dashboard">Dashboard</a>
+        <a class="active" href="/websites">Websites</a>
+        <a href="/system-logs">System Logs</a>
+        <a href="/articles">Articles</a>
+        <button id="logoutButton" class="secondary">Logout</button>
+      </aside>
+      <main class="content">
+        <div class="card">
+          <div class="title-row">
+            <h1>Website Management</h1>
+          </div>
+
+          <h2 id="formTitle">Add Website</h2>
+          <form id="websiteForm">
+            <label>
+              Website Name
+              <input id="name" required />
+            </label>
+            <label>
+              WordPress URL
+              <input id="wordpressUrl" placeholder="https://example.com" required />
+            </label>
+            <label>
+              WordPress Username
+              <input id="wordpressUsername" required />
+            </label>
+            <label>
+              WordPress Application Password
+              <input id="wordpressApplicationPassword" type="password" required />
+              <div id="passwordHelper" class="helper-text"></div>
+            </label>
+            <label>
+              Default Author (optional)
+              <input id="defaultAuthor" />
+            </label>
+            <label>
+              Default Category (optional)
+              <input id="defaultCategory" />
+            </label>
+            <div class="actions">
+              <button id="saveWebsiteButton" type="submit">Add Website</button>
+              <button id="clearEditButton" type="button" class="secondary" style="display: none">Cancel Edit</button>
+            </div>
+          </form>
+          <div id="websiteMessage" class="message"></div>
+        </div>
+
+        <div class="card">
+          <h2>Website List</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>WordPress URL</th>
+                <th>Status</th>
+                <th>Created Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="websitesBody"></tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+    <script type="module" src="/assets/js/websites.js"></script>
+  </body>
+</html>

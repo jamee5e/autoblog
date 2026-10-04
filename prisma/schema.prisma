@@ -1,0 +1,217 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  EDITOR
+}
+
+enum WebsiteStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ArticleStatus {
+  DRAFT
+  RESEARCHING
+  WRITING
+  CHECKING
+  REVISION
+  READY
+  PUBLISHING
+  PUBLISHED
+  FAILED
+}
+
+enum AIRunProvider {
+  GEMINI
+  ANTHROPIC
+  OPENAI
+  OTHER
+}
+
+enum AIAgentType {
+  RESEARCH
+  WRITER
+  QUALITY
+  ORCHESTRATOR
+}
+
+enum AIRunStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+enum NotificationType {
+  READY_FOR_REVIEW
+  PUBLISHED
+  ERROR
+}
+
+enum NotificationChannel {
+  LINE
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+enum SystemLogLevel {
+  DEBUG
+  INFO
+  WARN
+  ERROR
+}
+
+model Company {
+  id        String    @id @default(cuid())
+  name      String
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  users    User[]
+  websites Website[]
+
+  @@map("companies")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  companyId    String   @map("company_id")
+  name         String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         UserRole
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("users")
+}
+
+model Website {
+  id                                   String        @id @default(cuid())
+  companyId                            String        @map("company_id")
+  name                                 String
+  wordpressUrl                         String        @map("wordpress_url")
+  wordpressUsername                    String        @map("wordpress_username")
+  wordpressApplicationPasswordEncrypted String       @map("wordpress_application_password_encrypted")
+  defaultAuthor                        String?       @map("default_author")
+  defaultCategory                      String?       @map("default_category")
+  status                               WebsiteStatus @default(ACTIVE)
+  createdAt                            DateTime      @default(now()) @map("created_at")
+
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  brandProfiles BrandProfile[]
+  articles      Article[]
+
+  @@index([companyId])
+  @@map("websites")
+}
+
+model BrandProfile {
+  id              String   @id @default(cuid())
+  websiteId       String   @map("website_id")
+  language        String
+  tone            String
+  targetAudience  String   @map("target_audience")
+  brandPrompt     String   @map("brand_prompt")
+  seoRules        Json?    @map("seo_rules")
+  prohibitedTerms Json?    @map("prohibited_terms")
+  defaultCta      String?  @map("default_cta")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  website Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@unique([websiteId, language])
+  @@index([websiteId])
+  @@map("brand_profiles")
+}
+
+model Article {
+  id              String        @id @default(cuid())
+  websiteId        String        @map("website_id")
+  topic           String
+  primaryKeyword  String        @map("primary_keyword")
+  title           String?
+  slug            String?
+  metaDescription String?       @map("meta_description")
+  excerpt         String?
+  content         String?
+  status          ArticleStatus @default(DRAFT)
+  seoScore        Int?          @map("seo_score")
+  wordpressPostId String?       @map("wordpress_post_id")
+  wordpressUrl    String?       @map("wordpress_url")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  publishedAt     DateTime?     @map("published_at")
+
+  website       Website        @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  aiRuns        AIRun[]
+  notifications Notification[]
+
+  @@index([websiteId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("articles")
+}
+
+model AIRun {
+  id            String        @id @default(cuid())
+  articleId     String        @map("article_id")
+  provider      AIRunProvider
+  agentType     AIAgentType   @map("agent_type")
+  model         String
+  status        AIRunStatus
+  inputTokens   Int?          @map("input_tokens")
+  outputTokens  Int?          @map("output_tokens")
+  estimatedCost Decimal?      @map("estimated_cost") @db.Decimal(12, 6)
+  errorMessage  String?       @map("error_message")
+  startedAt     DateTime      @default(now()) @map("started_at")
+  completedAt   DateTime?     @map("completed_at")
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@index([articleId])
+  @@index([status])
+  @@map("ai_runs")
+}
+
+model Notification {
+  id        String             @id @default(cuid())
+  articleId String             @map("article_id")
+  type      NotificationType
+  channel   NotificationChannel
+  status    NotificationStatus @default(PENDING)
+  sentAt    DateTime?          @map("sent_at")
+  createdAt DateTime           @default(now()) @map("created_at")
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@index([articleId])
+  @@index([status])
+  @@map("notifications")
+}
+
+model SystemLog {
+  id        String         @id @default(cuid())
+  level     SystemLogLevel
+  module    String
+  message   String
+  metadata  Json?
+  createdAt DateTime       @default(now()) @map("created_at")
+
+  @@index([level])
+  @@index([createdAt])
+  @@map("system_logs")
+}

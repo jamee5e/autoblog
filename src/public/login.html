@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>KSD Auto Blog - Login</title>
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body>
+    <div class="auth-container">
+      <div class="card">
+        <h1>Login</h1>
+        <form id="loginForm">
+          <label>
+            Email
+            <input id="email" type="email" required />
+          </label>
+          <label>
+            Password
+            <input id="password" type="password" required />
+          </label>
+          <button type="submit">Sign in</button>
+        </form>
+        <div id="message" class="message"></div>
+      </div>
+    </div>
+    <script type="module" src="/assets/js/login.js"></script>
+  </body>
+</html>
