@@ -4,7 +4,7 @@
   "description": "KSD Auto Blog backend service",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
@@ -18,7 +18,12 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "db:seed": "node prisma/seed.js",
-    "test": "vitest run"
+    "test": "vitest run",
+    "dev:frontend": "npm --workspace frontend run dev",
+    "build:frontend": "npm --workspace frontend run build",
+    "build:all": "npm run build && npm run build:frontend",
+    "typecheck:frontend": "npm --workspace frontend run typecheck",
+    "typecheck:all": "npm run typecheck && npm run typecheck:frontend"
   },
   "keywords": [],
   "author": "",
@@ -43,8 +48,11 @@
     "@types/supertest": "^6.0.3",
     "prisma": "^6.16.3",
     "supertest": "^7.1.4",
-    "ts-node-dev": "^2.0.0",
     "typescript": "^7.0.2",
-    "vitest": "^3.2.4"
-  }
+    "vitest": "^3.2.4",
+    "tsx": "^4.20.6"
+  },
+  "workspaces": [
+    "frontend"
+  ]
 }
