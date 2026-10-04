@@ -1,0 +1,3 @@
+# autoblog
+
+Initial project scaffold.
