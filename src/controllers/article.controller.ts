@@ -48,6 +48,7 @@ export const listArticles = async (req: Request, res: Response): Promise<void> =
     },
     select: {
       id: true,
+      topic: true,
       title: true,
       primaryKeyword: true,
       seoScore: true,
@@ -66,6 +67,7 @@ export const listArticles = async (req: Request, res: Response): Promise<void> =
     success: true,
     data: articles.map((article) => ({
       id: article.id,
+      topic: article.topic,
       title: article.title,
       website: article.website.name,
       primaryKeyword: article.primaryKeyword,
@@ -93,12 +95,37 @@ export const getArticlePreview = async (req: Request, res: Response): Promise<vo
     },
     select: {
       id: true,
+      topic: true,
+      primaryKeyword: true,
+      additionalInstructions: true,
+      researchData: true,
       title: true,
       metaDescription: true,
       seoScore: true,
       content: true,
       status: true,
-      createdAt: true
+      createdAt: true,
+      website: {
+        select: {
+          name: true
+        }
+      },
+      aiRuns: {
+        where: {
+          agentType: "RESEARCH"
+        },
+        select: {
+          model: true,
+          status: true,
+          inputTokens: true,
+          outputTokens: true,
+          completedAt: true
+        },
+        orderBy: {
+          startedAt: "desc"
+        },
+        take: 1
+      }
     }
   });
 
@@ -106,9 +133,25 @@ export const getArticlePreview = async (req: Request, res: Response): Promise<vo
     throw new HttpError(404, "Article not found");
   }
 
+  const latestResearchRun = article.aiRuns[0] ?? null;
+
   res.status(200).json({
     success: true,
-    data: article
+    data: {
+      id: article.id,
+      topic: article.topic,
+      primaryKeyword: article.primaryKeyword,
+      additionalInstructions: article.additionalInstructions,
+      researchData: article.researchData,
+      title: article.title,
+      metaDescription: article.metaDescription,
+      seoScore: article.seoScore,
+      content: article.content,
+      status: article.status,
+      createdAt: article.createdAt,
+      website: article.website.name,
+      researchRun: latestResearchRun
+    }
   });
 };
 
