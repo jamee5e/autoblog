@@ -110,15 +110,18 @@ export const runResearchAgent = async (
   const model = getGeminiModel();
   const prompt = buildResearchPrompt(input);
 
-  let response;
+  let interaction;
 
   try {
-    response = await client.models.generateContent({
+    interaction = await client.interactions.create({
       model,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseJsonSchema: researchResponseSchema,
+      input: prompt,
+      response_format: {
+        type: "text",
+        mime_type: "application/json",
+        schema: researchResponseSchema
+      },
+      generation_config: {
         temperature: 0.2
       }
     });
@@ -130,7 +133,7 @@ export const runResearchAgent = async (
     });
   }
 
-  const responseText = response.text?.trim();
+  const responseText = interaction.output_text?.trim();
 
   if (!responseText) {
     throw new HttpError(502, "Gemini returned an empty research response", {
@@ -164,9 +167,9 @@ export const runResearchAgent = async (
     research: parsedResearch.data,
     model,
     usage: {
-      inputTokens: response.usageMetadata?.promptTokenCount ?? null,
-      outputTokens: response.usageMetadata?.candidatesTokenCount ?? null,
-      totalTokens: response.usageMetadata?.totalTokenCount ?? null
+      inputTokens: interaction.usage?.total_input_tokens ?? null,
+      outputTokens: interaction.usage?.total_output_tokens ?? null,
+      totalTokens: interaction.usage?.total_tokens ?? null
     }
   };
 };
