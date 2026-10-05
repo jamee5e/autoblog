@@ -34,8 +34,8 @@ export const projectPhases: ProjectPhase[] = [
       { name: "Website Management", status: "complete" },
       { name: "Credential Encryption", status: "complete" },
       { name: "Vue Website Management UI", status: "complete" },
-      { name: "Website #1 Connection", status: "waiting" },
-      { name: "Website #1 Draft Test", status: "pending" },
+      { name: "Website #1 Connection", status: "complete" },
+      { name: "Website #1 Draft Test", status: "complete" },
       { name: "Website #2 Connection", status: "waiting" },
       { name: "Website #2 Draft Test", status: "pending" }
     ]
@@ -43,12 +43,14 @@ export const projectPhases: ProjectPhase[] = [
   {
     id: 3,
     name: "Gemini Research Agent",
-    status: "pending",
+    status: "progress",
     tasks: [
-      { name: "Gemini API Integration", status: "pending" },
-      { name: "Research Prompt", status: "pending" },
-      { name: "Structured Research Output", status: "pending" },
-      { name: "Research Run Logging", status: "pending" }
+      { name: "Gemini API Integration", status: "complete" },
+      { name: "Research Prompt", status: "complete" },
+      { name: "Structured Research Output", status: "complete" },
+      { name: "Research Run Logging", status: "complete" },
+      { name: "Research Result UI", status: "complete" },
+      { name: "Final Acceptance Test", status: "progress" }
     ]
   },
   {
