@@ -1,20 +1,60 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import AppLayout from "@/layouts/AppLayout.vue";
-import { api } from "@/services/api";
-import type { Website } from "@/types";
+import { api, getApiErrorMessage } from "@/services/api";
+import type { ResearchResponse, Website } from "@/types";
 
 const websites = ref<Website[]>([]);
 const selectedWebsite = ref("");
 const topic = ref("");
 const keyword = ref("");
 const instructions = ref("");
+const submitting = ref(false);
+const errorMessage = ref("");
+const researchResult = ref<ResearchResponse | null>(null);
 
-onMounted(async () => {
-  const { data } = await api.get("/websites");
-  websites.value = data.data;
-  if (websites.value[0]) selectedWebsite.value = websites.value[0].id;
-});
+const canResearch = computed(
+  () =>
+    Boolean(selectedWebsite.value) &&
+    topic.value.trim().length >= 3 &&
+    keyword.value.trim().length > 0 &&
+    !submitting.value
+);
+
+const loadWebsites = async () => {
+  try {
+    const { data } = await api.get("/websites");
+    websites.value = data.data;
+    if (websites.value[0]) selectedWebsite.value = websites.value[0].id;
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(error, "Unable to load websites.");
+  }
+};
+
+const researchTopic = async () => {
+  if (!canResearch.value) return;
+
+  submitting.value = true;
+  errorMessage.value = "";
+  researchResult.value = null;
+
+  try {
+    const { data } = await api.post("/articles/research", {
+      websiteId: selectedWebsite.value,
+      topic: topic.value.trim(),
+      primaryKeyword: keyword.value.trim(),
+      additionalInstructions: instructions.value.trim() || undefined
+    });
+
+    researchResult.value = data.data;
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(error, "Unable to complete Gemini research.");
+  } finally {
+    submitting.value = false;
+  }
+};
+
+onMounted(loadWebsites);
 </script>
 
 <template>
@@ -23,10 +63,12 @@ onMounted(async () => {
       <div>
         <p class="eyebrow">AI CONTENT WORKFLOW</p>
         <h1>Generate Blog</h1>
-        <p>หน้าเตรียมพร้อมสำหรับ Gemini → Claude → GPT workflow</p>
+        <p>เริ่มจาก Gemini Research ก่อนส่งต่อให้ Writer และ SEO Agent</p>
       </div>
-      <span class="status-badge neutral">Phase 3 Pending</span>
+      <span class="status-badge progress">Phase 3 Active</span>
     </div>
+
+    <div v-if="errorMessage" class="alert danger">{{ errorMessage }}</div>
 
     <section class="generate-grid">
       <article class="surface-card">
@@ -36,28 +78,52 @@ onMounted(async () => {
             <h2>Content Brief</h2>
           </div>
         </div>
-        <div class="form-grid">
+
+        <form class="form-grid" @submit.prevent="researchTopic">
           <label>
             Website
-            <select v-model="selectedWebsite">
+            <select v-model="selectedWebsite" :disabled="submitting">
               <option value="" disabled>Select website</option>
-              <option v-for="website in websites" :key="website.id" :value="website.id">{{ website.name }}</option>
+              <option v-for="website in websites" :key="website.id" :value="website.id">
+                {{ website.name }}
+              </option>
             </select>
           </label>
+
           <label>
             Topic
-            <input v-model="topic" placeholder="Best time to visit Khao Sok" />
+            <input
+              v-model="topic"
+              :disabled="submitting"
+              placeholder="Best time to visit Khao Sok"
+              required
+            />
           </label>
+
           <label>
             Primary Keyword
-            <input v-model="keyword" placeholder="best time to visit khao sok" />
+            <input
+              v-model="keyword"
+              :disabled="submitting"
+              placeholder="best time to visit khao sok"
+              required
+            />
           </label>
+
           <label>
             Additional Instructions
-            <textarea v-model="instructions" rows="6" placeholder="Optional writing direction..."></textarea>
+            <textarea
+              v-model="instructions"
+              :disabled="submitting"
+              rows="6"
+              placeholder="Optional research direction..."
+            ></textarea>
           </label>
-          <button class="primary-button full" disabled>Generate Blog — Available in Phase 3</button>
-        </div>
+
+          <button class="primary-button full" type="submit" :disabled="!canResearch">
+            {{ submitting ? "Gemini is researching..." : "Research Topic with Gemini" }}
+          </button>
+        </form>
       </article>
 
       <article class="surface-card">
@@ -67,17 +133,99 @@ onMounted(async () => {
             <h2>AI Agent Progress</h2>
           </div>
         </div>
+
         <div class="workflow-list">
-          <div><span>1</span><div><strong>Gemini Research</strong><small>Research destination, intent and supporting facts</small></div></div>
-          <div><span>2</span><div><strong>Claude Writer</strong><small>Create structured KSD content</small></div></div>
-          <div><span>3</span><div><strong>GPT SEO & Quality</strong><small>Review SEO, quality and revision needs</small></div></div>
-          <div><span>4</span><div><strong>Ready for Review</strong><small>Human approval before WordPress publishing</small></div></div>
+          <div class="complete">
+            <span>1</span>
+            <div>
+              <strong>Gemini Research</strong>
+              <small>Research intent, facts, sections and related keywords</small>
+            </div>
+          </div>
+          <div>
+            <span>2</span>
+            <div>
+              <strong>Claude Writer</strong>
+              <small>Create structured KSD content — Phase 4</small>
+            </div>
+          </div>
+          <div>
+            <span>3</span>
+            <div>
+              <strong>GPT SEO & Quality</strong>
+              <small>Review SEO, quality and revision needs — Phase 5</small>
+            </div>
+          </div>
+          <div>
+            <span>4</span>
+            <div>
+              <strong>Ready for Review</strong>
+              <small>Human approval before WordPress publishing</small>
+            </div>
+          </div>
         </div>
-        <div class="info-banner amber">
-          <strong>AI integrations are intentionally disabled.</strong>
-          <span>Phase 2 WordPress acceptance must complete first.</span>
+
+        <div class="info-banner green">
+          <strong>Gemini Research is active.</strong>
+          <span>Writer and SEO steps remain disabled until their phases are implemented.</span>
         </div>
       </article>
+    </section>
+
+    <section v-if="researchResult" class="surface-card research-result-card">
+      <div class="research-result-header">
+        <div>
+          <p class="eyebrow">RESEARCH COMPLETE</p>
+          <h2>{{ topic }}</h2>
+          <p>
+            {{ researchResult.model }}
+            · {{ researchResult.usage.totalTokens ?? "—" }} tokens
+          </p>
+        </div>
+        <RouterLink class="primary-button" :to="`/articles/${researchResult.articleId}`">
+          View Research →
+        </RouterLink>
+      </div>
+
+      <div class="research-overview-grid">
+        <div class="research-block">
+          <span class="meta-label">SEARCH INTENT</span>
+          <p>{{ researchResult.research.searchIntent }}</p>
+        </div>
+        <div class="research-block">
+          <span class="meta-label">TARGET AUDIENCE</span>
+          <p>{{ researchResult.research.targetAudience }}</p>
+        </div>
+        <div class="research-block">
+          <span class="meta-label">CONTENT ANGLE</span>
+          <p>{{ researchResult.research.contentAngle }}</p>
+        </div>
+      </div>
+
+      <div class="research-detail-grid">
+        <div class="research-block">
+          <span class="meta-label">KEY QUESTIONS</span>
+          <ul class="research-list">
+            <li v-for="question in researchResult.research.keyQuestions" :key="question">
+              {{ question }}
+            </li>
+          </ul>
+        </div>
+
+        <div class="research-block">
+          <span class="meta-label">RECOMMENDED SECTIONS</span>
+          <div class="research-sections">
+            <div
+              v-for="section in researchResult.research.recommendedSections"
+              :key="section.heading"
+              class="research-section-item"
+            >
+              <strong>{{ section.heading }}</strong>
+              <span>{{ section.purpose }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
   </AppLayout>
 </template>
