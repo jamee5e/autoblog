@@ -1,21 +1,16 @@
-import { GoogleGenAI } from "@google/genai";
 import { env } from "../config/env";
 import { HttpError } from "../errors/http.error";
 
-let geminiClient: GoogleGenAI | null = null;
-
-export const getGeminiClient = (): GoogleGenAI => {
+export const getGeminiClient = async () => {
   if (!env.GEMINI_API_KEY) {
     throw new HttpError(503, "Gemini API is not configured");
   }
 
-  if (!geminiClient) {
-    geminiClient = new GoogleGenAI({
-      apiKey: env.GEMINI_API_KEY
-    });
-  }
+  const { GoogleGenAI } = await import("@google/genai");
 
-  return geminiClient;
+  return new GoogleGenAI({
+    apiKey: env.GEMINI_API_KEY
+  });
 };
 
 export const getGeminiModel = (): string => env.GEMINI_MODEL;
