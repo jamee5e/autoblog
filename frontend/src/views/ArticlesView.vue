@@ -17,6 +17,7 @@ const filteredArticles = computed(() =>
     const textMatches =
       !q ||
       (article.title || "").toLowerCase().includes(q) ||
+      article.topic.toLowerCase().includes(q) ||
       article.primaryKeyword.toLowerCase().includes(q) ||
       article.website.toLowerCase().includes(q);
     return statusMatches && textMatches;
@@ -81,7 +82,10 @@ onMounted(async () => {
           </thead>
           <tbody>
             <tr v-for="article in filteredArticles" :key="article.id">
-              <td><strong>{{ article.title || "(Untitled)" }}</strong></td>
+              <td>
+                <strong>{{ article.title || article.topic }}</strong>
+                <small v-if="!article.title" class="table-subtitle">Research brief</small>
+              </td>
               <td>{{ article.website }}</td>
               <td>{{ article.primaryKeyword }}</td>
               <td>{{ article.seoScore ?? "—" }}</td>
