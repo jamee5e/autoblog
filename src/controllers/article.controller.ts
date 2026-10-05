@@ -4,8 +4,38 @@ import { z } from "zod";
 import { prisma } from "../config/database";
 import { HttpError } from "../errors/http.error";
 import { requireAuthUser } from "../middlewares/auth.middleware";
+import { createArticleResearch } from "../services/research.service";
 
 const articleIdSchema = z.string().min(1);
+
+const articleResearchSchema = z.object({
+  websiteId: z.string().min(1),
+  topic: z.string().trim().min(3).max(300),
+  primaryKeyword: z.string().trim().min(1).max(200),
+  additionalInstructions: z.string().trim().max(2000).optional()
+});
+
+export const researchArticle = async (req: Request, res: Response): Promise<void> => {
+  const authUser = requireAuthUser(req);
+  const parsed = articleResearchSchema.safeParse(req.body);
+
+  if (!parsed.success) {
+    throw new HttpError(400, "Invalid research request payload");
+  }
+
+  const result = await createArticleResearch({
+    companyId: authUser.companyId,
+    websiteId: parsed.data.websiteId,
+    topic: parsed.data.topic,
+    primaryKeyword: parsed.data.primaryKeyword,
+    additionalInstructions: parsed.data.additionalInstructions
+  });
+
+  res.status(201).json({
+    success: true,
+    data: result
+  });
+};
 
 export const listArticles = async (req: Request, res: Response): Promise<void> => {
   const authUser = requireAuthUser(req);
