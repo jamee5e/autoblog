@@ -11,6 +11,7 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default("12h"),
   ENCRYPTION_KEY: z.string().min(32),
   GEMINI_API_KEY: z.string().optional(),
+  GEMINI_MODEL: z.string().min(1).default("gemini-2.5-flash"),
   ANTHROPIC_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   LINE_CHANNEL_ACCESS_TOKEN: z.string().optional()
