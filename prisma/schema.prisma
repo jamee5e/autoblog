@@ -143,6 +143,8 @@ model Article {
   websiteId        String        @map("website_id")
   topic           String
   primaryKeyword  String        @map("primary_keyword")
+  additionalInstructions String? @map("additional_instructions")
+  researchData    Json?          @map("research_data")
   title           String?
   slug            String?
   metaDescription String?       @map("meta_description")
