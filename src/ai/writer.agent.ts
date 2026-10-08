@@ -140,8 +140,7 @@ export const runWriterAgent = async (
 
     throw new HttpError(503, "Gemini writer is temporarily unavailable", {
       provider: "GEMINI",
-      primaryModel,
-      fallbackModel,
+      attemptedModels: models,
       errorMessage: getErrorMessage(lastError)
     });
   }
