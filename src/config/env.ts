@@ -13,7 +13,7 @@ const envSchema = z.object({
   GEMINI_API_KEY: z.string().optional(),
   GEMINI_MODEL: z.string().min(1).default("gemini-3.8-flash"),
   GEMINI_WRITER_MODEL: z.string().min(1).optional(),
-  GEMINI_WRITER_FALLBACK_MODEL: z.string().min(1).default("gemini-3.7-flash"),
+  GEMINI_WRITER_FALLBACK_MODEL: z.string().min(1).default("gemini-3.5-flash-lite"),
   ANTHROPIC_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   LINE_CHANNEL_ACCESS_TOKEN: z.string().optional()
