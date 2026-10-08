@@ -10,6 +10,11 @@ const moduleFilter = ref("");
 const levelFilter = ref("");
 const errorMessage = ref("");
 
+const formatMetadata = (metadata: Record<string, unknown> | null) => {
+  if (!metadata) return "";
+  return JSON.stringify(metadata, null, 2);
+};
+
 const loadLogs = async () => {
   loading.value = true;
   errorMessage.value = "";
@@ -65,6 +70,7 @@ onMounted(loadLogs);
               <th>Level</th>
               <th>Module</th>
               <th>Message</th>
+              <th>Details</th>
             </tr>
           </thead>
           <tbody>
@@ -73,6 +79,13 @@ onMounted(loadLogs);
               <td><span class="log-level" :class="log.level.toLowerCase()">{{ log.level }}</span></td>
               <td>{{ log.module }}</td>
               <td>{{ log.message }}</td>
+              <td>
+                <details v-if="log.metadata">
+                  <summary>View</summary>
+                  <pre class="log-metadata">{{ formatMetadata(log.metadata) }}</pre>
+                </details>
+                <span v-else>—</span>
+              </td>
             </tr>
           </tbody>
         </table>
