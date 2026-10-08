@@ -1346,3 +1346,30 @@ label small {
     font-size: 38px;
   }
 }
+
+
+.writer-run-meta {
+  display: grid;
+  justify-items: end;
+  gap: 5px;
+}
+
+.writer-run-meta small {
+  color: #89938c;
+  font-size: 9px;
+}
+
+.article-meta-description {
+  max-width: 820px;
+  margin: 0 auto 18px;
+  color: #6d7a72;
+  font-size: 12px;
+  line-height: 1.6;
+  font-style: italic;
+}
+
+@media (max-width: 820px) {
+  .writer-run-meta {
+    justify-items: start;
+  }
+}
