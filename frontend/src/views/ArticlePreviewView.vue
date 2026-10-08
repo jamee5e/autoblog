@@ -9,15 +9,38 @@ import type { ArticlePreview } from "@/types";
 const route = useRoute();
 const article = ref<ArticlePreview | null>(null);
 const errorMessage = ref("");
+const successMessage = ref("");
+const writing = ref(false);
 
-onMounted(async () => {
+const loadArticle = async () => {
   try {
     const { data } = await api.get(`/articles/${route.params.id}`);
     article.value = data.data;
   } catch (error) {
     errorMessage.value = getApiErrorMessage(error, "Unable to load article preview.");
   }
-});
+};
+
+const generateArticle = async () => {
+  if (!article.value?.researchData || writing.value) return;
+
+  writing.value = true;
+  errorMessage.value = "";
+  successMessage.value = "";
+
+  try {
+    await api.post(`/articles/${route.params.id}/write`);
+    successMessage.value = "Writer Agent completed the article draft.";
+    await loadArticle();
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(error, "Unable to generate article draft.");
+    await loadArticle();
+  } finally {
+    writing.value = false;
+  }
+};
+
+onMounted(loadArticle);
 </script>
 
 <template>
@@ -32,7 +55,8 @@ onMounted(async () => {
     </div>
 
     <div v-if="errorMessage" class="alert danger">{{ errorMessage }}</div>
-    <div v-else-if="!article" class="surface-card empty-state">Loading article...</div>
+    <div v-if="successMessage" class="alert success">{{ successMessage }}</div>
+    <div v-if="!article" class="surface-card empty-state">Loading article...</div>
 
     <template v-else>
       <section class="article-summary-grid">
@@ -53,12 +77,12 @@ onMounted(async () => {
       <section v-if="article.researchData" class="surface-card research-preview-card">
         <div class="research-result-header">
           <div>
-            <p class="eyebrow">GEMINI RESEARCH</p>
+            <p class="eyebrow">RESEARCH AGENT</p>
             <h2>{{ article.topic }}</h2>
             <p v-if="article.researchRun">
               {{ article.researchRun.model }}
               · {{ (article.researchRun.inputTokens ?? 0) + (article.researchRun.outputTokens ?? 0) }} tokens
-              · Research complete
+              · Gemini
             </p>
           </div>
           <span class="status-badge success">Research Complete</span>
@@ -140,36 +164,51 @@ onMounted(async () => {
             </div>
           </div>
         </div>
-
-        <div class="info-banner amber">
-          <strong>Next: Claude Writer</strong>
-          <span>Research is ready. Article writing will be enabled in Phase 4.</span>
-        </div>
       </section>
 
       <section class="surface-card article-preview-card">
         <div class="card-heading">
           <div>
-            <p class="eyebrow">CONTENT PREVIEW</p>
+            <p class="eyebrow">WRITER AGENT</p>
             <h2>{{ article.title || article.topic }}</h2>
+          </div>
+          <div v-if="article.writerRun" class="writer-run-meta">
+            <span class="status-badge success">Writer Complete</span>
+            <small>{{ article.writerRun.model }} · Gemini</small>
           </div>
         </div>
 
-        <div v-if="article.content" class="article-content" v-html="article.content"></div>
+        <div v-if="article.content">
+          <p v-if="article.metaDescription" class="article-meta-description">
+            {{ article.metaDescription }}
+          </p>
+          <div class="article-content" v-html="article.content"></div>
+        </div>
+
         <div v-else class="writer-pending-state">
-          <strong>Research complete — article content has not been written yet.</strong>
-          <span>Claude Writer will generate the title and article body in Phase 4.</span>
+          <strong>Research is ready for the Writer Agent.</strong>
+          <span>For the pilot workflow, the Writer Agent also uses Gemini.</span>
+          <button
+            class="primary-button top-gap"
+            type="button"
+            :disabled="writing || !article.researchData"
+            @click="generateArticle"
+          >
+            {{ writing ? "Writer Agent is generating..." : "Generate Article Draft" }}
+          </button>
         </div>
       </section>
 
       <section class="surface-card">
         <div class="card-heading">
           <div>
-            <p class="eyebrow">AI QUALITY</p>
-            <h2>Quality Issues</h2>
+            <p class="eyebrow">SEO & QUALITY AGENT</p>
+            <h2>Quality Review</h2>
           </div>
         </div>
-        <div class="empty-inline">GPT SEO & Quality results will appear here in Phase 5.</div>
+        <div class="empty-inline">
+          Quality review will be the next step. During the pilot it will also use Gemini.
+        </div>
         <div class="button-row top-gap">
           <button class="secondary-button" disabled>Edit</button>
           <button class="secondary-button" disabled>Regenerate</button>
