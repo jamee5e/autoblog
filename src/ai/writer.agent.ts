@@ -39,6 +39,8 @@ export interface WriterAgentResult {
   };
 }
 
+const WRITER_TIMEOUT_MS = 90_000;
+
 export const runWriterAgent = async (
   input: WriterPromptInput
 ): Promise<WriterAgentResult> => {
@@ -49,7 +51,7 @@ export const runWriterAgent = async (
   let interaction;
 
   try {
-    interaction = await client.interactions.create({
+    const writerRequest = client.interactions.create({
       model,
       input: prompt,
       response_format: {
@@ -58,10 +60,30 @@ export const runWriterAgent = async (
         schema: articleDraftResponseSchema
       },
       generation_config: {
-        temperature: 0.45
+        temperature: 0.45,
+        thinking_level: "low",
+        max_output_tokens: 5000
       }
     });
+
+    const writerTimeout = new Promise<never>((_resolve, reject) => {
+      setTimeout(() => {
+        reject(
+          new HttpError(504, "Gemini writer request timed out", {
+            provider: "GEMINI",
+            model,
+            timeoutMs: WRITER_TIMEOUT_MS
+          })
+        );
+      }, WRITER_TIMEOUT_MS);
+    });
+
+    interaction = await Promise.race([writerRequest, writerTimeout]);
   } catch (error) {
+    if (error instanceof HttpError) {
+      throw error;
+    }
+
     throw new HttpError(502, "Gemini writer request failed", {
       provider: "GEMINI",
       model,
