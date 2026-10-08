@@ -1,10 +1,11 @@
-import { UserRole } from "@prisma/client";
+import { AIAgentType, UserRole } from "@prisma/client";
 import { Request, Response } from "express";
 import { z } from "zod";
 import { prisma } from "../config/database";
 import { HttpError } from "../errors/http.error";
 import { requireAuthUser } from "../middlewares/auth.middleware";
 import { createArticleResearch } from "../services/research.service";
+import { writeArticleDraft } from "../services/writer.service";
 
 const articleIdSchema = z.string().min(1);
 
@@ -14,6 +15,25 @@ const articleResearchSchema = z.object({
   primaryKeyword: z.string().trim().min(1).max(200),
   additionalInstructions: z.string().trim().max(2000).optional()
 });
+
+export const writeArticle = async (req: Request, res: Response): Promise<void> => {
+  const authUser = requireAuthUser(req);
+  const parsedId = articleIdSchema.safeParse(req.params.id);
+
+  if (!parsedId.success) {
+    throw new HttpError(400, "Invalid article id");
+  }
+
+  const result = await writeArticleDraft({
+    companyId: authUser.companyId,
+    articleId: parsedId.data
+  });
+
+  res.status(200).json({
+    success: true,
+    data: result
+  });
+};
 
 export const researchArticle = async (req: Request, res: Response): Promise<void> => {
   const authUser = requireAuthUser(req);
@@ -112,19 +132,23 @@ export const getArticlePreview = async (req: Request, res: Response): Promise<vo
       },
       aiRuns: {
         where: {
-          agentType: "RESEARCH"
+          agentType: {
+            in: [AIAgentType.RESEARCH, AIAgentType.WRITER, AIAgentType.QUALITY]
+          }
         },
         select: {
+          agentType: true,
           model: true,
           status: true,
           inputTokens: true,
           outputTokens: true,
-          completedAt: true
+          completedAt: true,
+          startedAt: true
         },
         orderBy: {
           startedAt: "desc"
         },
-        take: 1
+        take: 12
       }
     }
   });
@@ -133,7 +157,12 @@ export const getArticlePreview = async (req: Request, res: Response): Promise<vo
     throw new HttpError(404, "Article not found");
   }
 
-  const latestResearchRun = article.aiRuns[0] ?? null;
+  const latestResearchRun =
+    article.aiRuns.find((run) => run.agentType === AIAgentType.RESEARCH) ?? null;
+  const latestWriterRun =
+    article.aiRuns.find((run) => run.agentType === AIAgentType.WRITER) ?? null;
+  const latestQualityRun =
+    article.aiRuns.find((run) => run.agentType === AIAgentType.QUALITY) ?? null;
 
   res.status(200).json({
     success: true,
@@ -150,7 +179,9 @@ export const getArticlePreview = async (req: Request, res: Response): Promise<vo
       status: article.status,
       createdAt: article.createdAt,
       website: article.website.name,
-      researchRun: latestResearchRun
+      researchRun: latestResearchRun,
+      writerRun: latestWriterRun,
+      qualityRun: latestQualityRun
     }
   });
 };
