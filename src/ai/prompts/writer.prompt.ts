@@ -35,6 +35,7 @@ export const buildWriterPrompt = (input: WriterPromptInput): string => {
     "- Omit or carefully qualify facts marked as needing verification.",
     "- Use the primary keyword naturally. Do not keyword-stuff.",
     "- Write for humans first, with clear headings, short paragraphs, and useful detail.",
+    "- Target roughly 900-1,200 words for the pilot article unless the supplied instructions clearly require less.",
     "- Match the supplied brand tone and target audience when available.",
     "- Follow prohibited-term rules when provided.",
     "- Return article body HTML only inside the content field. Do not return a full HTML document.",
