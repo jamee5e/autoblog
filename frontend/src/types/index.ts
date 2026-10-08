@@ -82,6 +82,20 @@ export interface ArticlePreview {
     outputTokens: number | null;
     completedAt: string | null;
   } | null;
+  writerRun: {
+    model: string;
+    status: string;
+    inputTokens: number | null;
+    outputTokens: number | null;
+    completedAt: string | null;
+  } | null;
+  qualityRun: {
+    model: string;
+    status: string;
+    inputTokens: number | null;
+    outputTokens: number | null;
+    completedAt: string | null;
+  } | null;
   title: string | null;
   metaDescription: string | null;
   seoScore: number | null;
