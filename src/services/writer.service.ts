@@ -6,7 +6,7 @@ import {
   SystemLogLevel
 } from "@prisma/client";
 import { runWriterAgent } from "../ai/writer.agent";
-import { getGeminiModel } from "../ai/gemini.client";
+import { getGeminiWriterModel } from "../ai/gemini.client";
 import { prisma } from "../config/database";
 import { HttpError } from "../errors/http.error";
 import { createSystemLog } from "./system-log.service";
@@ -45,7 +45,7 @@ export const writeArticleDraft = async (input: WriteArticleInput) => {
   }
 
   const brandProfile = article.website.brandProfiles[0];
-  const model = getGeminiModel();
+  const model = getGeminiWriterModel();
 
   await prisma.aIRun.updateMany({
     where: {
@@ -110,6 +110,7 @@ export const writeArticleDraft = async (input: WriteArticleInput) => {
         where: { id: aiRun.id },
         data: {
           status: AIRunStatus.SUCCESS,
+          model: result.model,
           inputTokens: result.usage.inputTokens,
           outputTokens: result.usage.outputTokens,
           completedAt: new Date()
