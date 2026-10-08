@@ -14,3 +14,10 @@ export const getGeminiClient = async () => {
 };
 
 export const getGeminiModel = (): string => env.GEMINI_MODEL;
+
+
+export const getGeminiWriterModel = (): string =>
+  env.GEMINI_WRITER_MODEL ?? env.GEMINI_MODEL;
+
+export const getGeminiWriterFallbackModel = (): string =>
+  env.GEMINI_WRITER_FALLBACK_MODEL;
