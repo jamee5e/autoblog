@@ -55,21 +55,24 @@ export const projectPhases: ProjectPhase[] = [
   },
   {
     id: 4,
-    name: "Claude Content Writer",
-    status: "pending",
+    name: "Writer Agent (Gemini Pilot)",
+    status: "progress",
     tasks: [
-      { name: "Claude API Integration", status: "pending" },
-      { name: "Article Structure", status: "pending" },
-      { name: "Brand Voice Rules", status: "pending" },
-      { name: "Article Storage", status: "pending" }
+      { name: "Gemini Writer Integration", status: "complete" },
+      { name: "Writer Prompt", status: "complete" },
+      { name: "Structured Article Output", status: "complete" },
+      { name: "Brand Voice Rules", status: "complete" },
+      { name: "AIRun Logging", status: "complete" },
+      { name: "Article Preview Action", status: "complete" },
+      { name: "Acceptance Test", status: "progress" }
     ]
   },
   {
     id: 5,
-    name: "GPT SEO & Quality",
+    name: "SEO & Quality Agent (Gemini Pilot)",
     status: "pending",
     tasks: [
-      { name: "GPT API Integration", status: "pending" },
+      { name: "Gemini Quality Integration", status: "pending" },
       { name: "SEO Review", status: "pending" },
       { name: "Quality Score", status: "pending" },
       { name: "Revision Feedback Loop", status: "pending" }
