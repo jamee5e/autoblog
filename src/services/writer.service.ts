@@ -47,6 +47,19 @@ export const writeArticleDraft = async (input: WriteArticleInput) => {
   const brandProfile = article.website.brandProfiles[0];
   const model = getGeminiModel();
 
+  await prisma.aIRun.updateMany({
+    where: {
+      articleId: article.id,
+      agentType: AIAgentType.WRITER,
+      status: AIRunStatus.RUNNING
+    },
+    data: {
+      status: AIRunStatus.FAILED,
+      errorMessage: "Superseded by a new writer run",
+      completedAt: new Date()
+    }
+  });
+
   const aiRun = await prisma.aIRun.create({
     data: {
       articleId: article.id,
