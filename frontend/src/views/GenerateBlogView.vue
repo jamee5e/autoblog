@@ -63,7 +63,7 @@ onMounted(loadWebsites);
       <div>
         <p class="eyebrow">AI CONTENT WORKFLOW</p>
         <h1>Generate Blog</h1>
-        <p>เริ่มจาก Gemini Research ก่อนส่งต่อให้ Writer และ SEO Agent</p>
+        <p>เริ่มจาก Research Agent ก่อนส่งต่อให้ Writer และ SEO & Quality Agent</p>
       </div>
       <span class="status-badge progress">Phase 3 Active</span>
     </div>
@@ -138,22 +138,22 @@ onMounted(loadWebsites);
           <div class="complete">
             <span>1</span>
             <div>
-              <strong>Gemini Research</strong>
-              <small>Research intent, facts, sections and related keywords</small>
+              <strong>Research Agent</strong>
+              <small>Gemini · research intent, facts, sections and related keywords</small>
             </div>
           </div>
           <div>
             <span>2</span>
             <div>
-              <strong>Claude Writer</strong>
-              <small>Create structured KSD content — Phase 4</small>
+              <strong>Writer Agent</strong>
+              <small>Gemini pilot · create structured article content</small>
             </div>
           </div>
           <div>
             <span>3</span>
             <div>
-              <strong>GPT SEO & Quality</strong>
-              <small>Review SEO, quality and revision needs — Phase 5</small>
+              <strong>SEO & Quality Agent</strong>
+              <small>Gemini pilot · review SEO, quality and revision needs</small>
             </div>
           </div>
           <div>
@@ -167,7 +167,7 @@ onMounted(loadWebsites);
 
         <div class="info-banner green">
           <strong>Gemini Research is active.</strong>
-          <span>Writer and SEO steps remain disabled until their phases are implemented.</span>
+          <span>Research is active. Writer and Quality agents are being enabled next using Gemini for the pilot.</span>
         </div>
       </article>
     </section>
