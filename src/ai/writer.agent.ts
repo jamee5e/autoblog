@@ -47,41 +47,35 @@ export const runWriterAgent = async (
   const client = await getGeminiClient();
   const model = getGeminiModel();
   const prompt = buildWriterPrompt(input);
+  const { ThinkingLevel } = await import("@google/genai");
 
-  let interaction;
+  let response;
 
   try {
-    const writerRequest = client.interactions.create({
+    response = await client.models.generateContent({
       model,
-      input: prompt,
-      response_format: {
-        type: "text",
-        mime_type: "application/json",
-        schema: articleDraftResponseSchema
-      },
-      generation_config: {
-        temperature: 0.45,
-        thinking_level: "low",
-        max_output_tokens: 5000
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseJsonSchema: articleDraftResponseSchema,
+        temperature: 0.4,
+        maxOutputTokens: 4500,
+        thinkingConfig: {
+          thinkingLevel: ThinkingLevel.LOW
+        },
+        abortSignal: AbortSignal.timeout(WRITER_TIMEOUT_MS)
       }
     });
-
-    const writerTimeout = new Promise<never>((_resolve, reject) => {
-      setTimeout(() => {
-        reject(
-          new HttpError(504, "Gemini writer request timed out", {
-            provider: "GEMINI",
-            model,
-            timeoutMs: WRITER_TIMEOUT_MS
-          })
-        );
-      }, WRITER_TIMEOUT_MS);
-    });
-
-    interaction = await Promise.race([writerRequest, writerTimeout]);
   } catch (error) {
-    if (error instanceof HttpError) {
-      throw error;
+    const errorName =
+      error instanceof Error ? error.name : "UnknownError";
+
+    if (errorName === "TimeoutError" || errorName === "AbortError" || errorName === "RequestTimeoutError") {
+      throw new HttpError(504, "Gemini writer request timed out", {
+        provider: "GEMINI",
+        model,
+        timeoutMs: WRITER_TIMEOUT_MS
+      });
     }
 
     throw new HttpError(502, "Gemini writer request failed", {
@@ -90,8 +84,7 @@ export const runWriterAgent = async (
       errorMessage: error instanceof Error ? error.message : "Unknown Gemini error"
     });
   }
-
-  const responseText = interaction.output_text?.trim();
+  const responseText = response.text?.trim();
 
   if (!responseText) {
     throw new HttpError(502, "Gemini returned an empty writer response", {
@@ -132,9 +125,9 @@ export const runWriterAgent = async (
     draft: parsedDraft.data,
     model,
     usage: {
-      inputTokens: interaction.usage?.total_input_tokens ?? null,
-      outputTokens: interaction.usage?.total_output_tokens ?? null,
-      totalTokens: interaction.usage?.total_tokens ?? null
+      inputTokens: response.usageMetadata?.promptTokenCount ?? null,
+      outputTokens: response.usageMetadata?.candidatesTokenCount ?? null,
+      totalTokens: response.usageMetadata?.totalTokenCount ?? null
     }
   };
 };
