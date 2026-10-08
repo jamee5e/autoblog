@@ -110,6 +110,7 @@ export interface SystemLog {
   level: "DEBUG" | "INFO" | "WARN" | "ERROR";
   module: string;
   message: string;
+  metadata: Record<string, unknown> | null;
 }
 
 export interface ApiListResponse<T> {
