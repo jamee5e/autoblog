@@ -57,6 +57,25 @@ export interface ResearchResponse {
   research: ResearchBrief;
 }
 
+export type QualityDecision = "PASS" | "REVISION_REQUIRED";
+
+export interface QualityIssue {
+  category: "SEO" | "FACTUAL" | "READABILITY" | "BRAND" | "STRUCTURE" | "OTHER";
+  severity: "HIGH" | "MEDIUM" | "LOW";
+  message: string;
+  suggestion: string;
+}
+
+export interface QualityReview {
+  decision: QualityDecision;
+  seoScore: number;
+  qualityScore: number;
+  metaDescription: string;
+  summary: string;
+  issues: QualityIssue[];
+  revisionInstructions: string[];
+}
+
 export interface ArticleSummary {
   id: string;
   topic: string;
@@ -74,6 +93,9 @@ export interface ArticlePreview {
   primaryKeyword: string;
   additionalInstructions: string | null;
   researchData: ResearchBrief | null;
+  qualityData: QualityReview | null;
+  qualityScore: number | null;
+  revisionCount: number;
   website: string;
   researchRun: {
     model: string;
@@ -97,6 +119,8 @@ export interface ArticlePreview {
     completedAt: string | null;
   } | null;
   title: string | null;
+  slug: string | null;
+  excerpt: string | null;
   metaDescription: string | null;
   seoScore: number | null;
   content: string | null;
