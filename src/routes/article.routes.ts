@@ -4,6 +4,7 @@ import {
   getArticlePermissions,
   getArticlePreview,
   listArticles,
+  orchestrateArticleWorkflow,
   publishWordPressArticle,
   researchArticle,
   reviewArticle,
@@ -17,6 +18,7 @@ export const articleRouter = Router();
 
 articleRouter.get("/", authorizeRoles(UserRole.ADMIN, UserRole.EDITOR), listArticles);
 articleRouter.post("/research", authorizeRoles(UserRole.ADMIN, UserRole.EDITOR), researchArticle);
+articleRouter.post("/orchestrate", authorizeRoles(UserRole.ADMIN, UserRole.EDITOR), orchestrateArticleWorkflow);
 articleRouter.post("/:id/write", authorizeRoles(UserRole.ADMIN, UserRole.EDITOR), writeArticle);
 articleRouter.post("/:id/quality", authorizeRoles(UserRole.ADMIN, UserRole.EDITOR), reviewArticle);
 articleRouter.post("/:id/revise", authorizeRoles(UserRole.ADMIN, UserRole.EDITOR), reviseArticle);
