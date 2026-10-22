@@ -471,8 +471,7 @@ onMounted(loadArticle);
             type="button"
             :disabled="
               savingWordPressDraft ||
-              article.status !== 'READY' ||
-              article.status === 'PUBLISHED'
+              article.status !== 'READY'
             "
             @click="saveWordPressDraft"
           >
