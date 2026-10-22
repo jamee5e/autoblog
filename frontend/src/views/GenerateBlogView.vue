@@ -1,8 +1,14 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import { api, getApiErrorMessage } from "@/services/api";
-import type { OrchestrationResponse, ResearchResponse, Website } from "@/types";
+import type {
+  OrchestrationResponse,
+  ResearchResponse,
+  ScheduledJob,
+  ScheduledJobAction,
+  Website
+} from "@/types";
 
 const websites = ref<Website[]>([]);
 const selectedWebsite = ref("");
@@ -14,14 +20,44 @@ const errorMessage = ref("");
 const researchResult = ref<ResearchResponse | null>(null);
 const orchestrationResult = ref<OrchestrationResponse | null>(null);
 const activeAction = ref<"research" | "full" | null>(null);
+const scheduledDate = ref("");
+const scheduledTime = ref("");
+const scheduleAction = ref<ScheduledJobAction>("GENERATE_AND_DRAFT");
+const scheduling = ref(false);
+const scheduleSuccess = ref("");
+const schedules = ref<ScheduledJob[]>([]);
+const loadingSchedules = ref(false);
+const scheduleTimezone =
+  Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Bangkok";
+let scheduleRefreshTimer: number | null = null;
 
-const canResearch = computed(
+const briefIsValid = computed(
   () =>
     Boolean(selectedWebsite.value) &&
     topic.value.trim().length >= 3 &&
-    keyword.value.trim().length > 0 &&
-    !submitting.value
+    keyword.value.trim().length > 0
 );
+
+const canResearch = computed(
+  () => briefIsValid.value && !submitting.value && !scheduling.value
+);
+
+const canSchedule = computed(
+  () =>
+    briefIsValid.value &&
+    Boolean(scheduledDate.value) &&
+    Boolean(scheduledTime.value) &&
+    !submitting.value &&
+    !scheduling.value
+);
+
+const minScheduleDate = computed(() => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+});
 
 const loadWebsites = async () => {
   try {
@@ -32,6 +68,100 @@ const loadWebsites = async () => {
     errorMessage.value = getApiErrorMessage(error, "Unable to load websites.");
   }
 };
+
+const loadSchedules = async (silent = false) => {
+  if (!silent) loadingSchedules.value = true;
+
+  try {
+    const { data } = await api.get("/schedules");
+    schedules.value = data.data;
+  } catch (error) {
+    if (!silent) {
+      errorMessage.value = getApiErrorMessage(
+        error,
+        "Unable to load scheduled workflows."
+      );
+    }
+  } finally {
+    if (!silent) loadingSchedules.value = false;
+  }
+};
+
+const scheduleFullArticle = async () => {
+  if (!canSchedule.value) return;
+
+  const localDateTime = new Date(
+    `${scheduledDate.value}T${scheduledTime.value}:00`
+  );
+
+  if (
+    Number.isNaN(localDateTime.getTime()) ||
+    localDateTime.getTime() <= Date.now()
+  ) {
+    errorMessage.value = "Choose a future date and time for the scheduled workflow.";
+    return;
+  }
+
+  scheduling.value = true;
+  errorMessage.value = "";
+  scheduleSuccess.value = "";
+
+  try {
+    await api.post("/schedules", {
+      websiteId: selectedWebsite.value,
+      topic: topic.value.trim(),
+      primaryKeyword: keyword.value.trim(),
+      additionalInstructions: instructions.value.trim() || undefined,
+      scheduledAt: localDateTime.toISOString(),
+      timezone: scheduleTimezone,
+      action: scheduleAction.value
+    });
+
+    scheduleSuccess.value =
+      scheduleAction.value === "GENERATE_AND_DRAFT"
+        ? "Scheduled. The AI workflow will run automatically and save a WordPress draft after PASS."
+        : "Scheduled. The AI workflow will run automatically at the selected time.";
+
+    scheduledDate.value = "";
+    scheduledTime.value = "";
+    await loadSchedules();
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(
+      error,
+      "Unable to schedule the article workflow."
+    );
+  } finally {
+    scheduling.value = false;
+  }
+};
+
+const cancelSchedule = async (scheduledJobId: string) => {
+  errorMessage.value = "";
+  scheduleSuccess.value = "";
+
+  try {
+    await api.post(`/schedules/${scheduledJobId}/cancel`);
+    scheduleSuccess.value = "Scheduled workflow cancelled.";
+    await loadSchedules();
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(
+      error,
+      "Unable to cancel the scheduled workflow."
+    );
+  }
+};
+
+const formatScheduledAt = (value: string) =>
+  new Date(value).toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short"
+  });
+
+const scheduleActionLabel = (action: ScheduledJobAction) =>
+  action === "GENERATE_AND_DRAFT"
+    ? "AI + WordPress Draft"
+    : "AI Workflow Only";
+
 
 const researchTopic = async () => {
   if (!canResearch.value) return;
@@ -88,7 +218,18 @@ const generateFullArticle = async () => {
   }
 };
 
-onMounted(loadWebsites);
+onMounted(async () => {
+  await Promise.all([loadWebsites(), loadSchedules()]);
+  scheduleRefreshTimer = window.setInterval(() => {
+    void loadSchedules(true);
+  }, 30_000);
+});
+
+onBeforeUnmount(() => {
+  if (scheduleRefreshTimer !== null) {
+    window.clearInterval(scheduleRefreshTimer);
+  }
+});
 </script>
 
 <template>
@@ -233,6 +374,147 @@ onMounted(loadWebsites);
           </span>
         </div>
       </article>
+    </section>
+
+
+    <section class="surface-card schedule-card">
+      <div class="card-heading">
+        <div>
+          <p class="eyebrow">AUTOMATION</p>
+          <h2>Schedule Full Workflow</h2>
+          <p class="schedule-helper">
+            เลือกวันและเวลาให้ระบบทำ Research → Writer → SEO & Quality อัตโนมัติ
+          </p>
+        </div>
+        <span class="status-badge progress">{{ scheduleTimezone }}</span>
+      </div>
+
+      <div v-if="scheduleSuccess" class="alert success">{{ scheduleSuccess }}</div>
+
+      <div class="schedule-form-grid">
+        <label>
+          Date
+          <input
+            v-model="scheduledDate"
+            type="date"
+            :min="minScheduleDate"
+            :disabled="scheduling || submitting"
+          />
+        </label>
+
+        <label>
+          Time
+          <input
+            v-model="scheduledTime"
+            type="time"
+            :disabled="scheduling || submitting"
+          />
+        </label>
+
+        <label>
+          After AI Workflow
+          <select
+            v-model="scheduleAction"
+            :disabled="scheduling || submitting"
+          >
+            <option value="GENERATE_AND_DRAFT">
+              Save WordPress Draft after PASS
+            </option>
+            <option value="GENERATE_ONLY">
+              Stop at Ready for Review
+            </option>
+          </select>
+        </label>
+
+        <button
+          class="primary-button schedule-submit"
+          type="button"
+          :disabled="!canSchedule"
+          @click="scheduleFullArticle"
+        >
+          {{ scheduling ? "Scheduling..." : "Schedule Automatic Run" }}
+        </button>
+      </div>
+
+      <div class="info-banner green top-gap">
+        <strong>Publishing remains manual.</strong>
+        <span>
+          Scheduled jobs can create a WordPress Draft automatically after PASS,
+          but they will not publish live without Admin approval.
+        </span>
+      </div>
+
+      <div class="schedule-list-head">
+        <div>
+          <span class="meta-label">SCHEDULED JOBS</span>
+          <strong>Upcoming & Recent</strong>
+        </div>
+        <button
+          class="secondary-button"
+          type="button"
+          :disabled="loadingSchedules"
+          @click="loadSchedules()"
+        >
+          {{ loadingSchedules ? "Refreshing..." : "Refresh" }}
+        </button>
+      </div>
+
+      <div v-if="!loadingSchedules && schedules.length === 0" class="empty-inline">
+        No scheduled workflows yet.
+      </div>
+
+      <div v-else class="schedule-list">
+        <article
+          v-for="job in schedules"
+          :key="job.id"
+          class="schedule-item"
+        >
+          <div class="schedule-main">
+            <div class="schedule-title-row">
+              <strong>{{ job.topic }}</strong>
+              <span class="schedule-status" :class="job.status.toLowerCase()">
+                {{ job.status }}
+              </span>
+            </div>
+            <span>{{ job.website.name }} · {{ job.primaryKeyword }}</span>
+            <small>
+              {{ formatScheduledAt(job.scheduledAt) }}
+              · {{ job.timezone }}
+              · {{ scheduleActionLabel(job.action) }}
+            </small>
+            <small v-if="job.lastError" class="schedule-error">
+              {{ job.lastError }}
+            </small>
+          </div>
+
+          <div class="schedule-actions">
+            <RouterLink
+              v-if="job.article"
+              class="secondary-button"
+              :to="`/articles/${job.article.id}`"
+            >
+              View Article
+            </RouterLink>
+            <a
+              v-if="job.article?.wordpressUrl"
+              class="secondary-button"
+              :href="job.article.wordpressUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              WordPress
+            </a>
+            <button
+              v-if="job.status === 'PENDING'"
+              class="outline-button"
+              type="button"
+              @click="cancelSchedule(job.id)"
+            >
+              Cancel
+            </button>
+          </div>
+        </article>
+      </div>
     </section>
 
 
