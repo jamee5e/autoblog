@@ -145,6 +145,9 @@ model Article {
   primaryKeyword  String        @map("primary_keyword")
   additionalInstructions String? @map("additional_instructions")
   researchData    Json?          @map("research_data")
+  qualityData     Json?          @map("quality_data")
+  qualityScore    Int?           @map("quality_score")
+  revisionCount   Int            @default(0) @map("revision_count")
   title           String?
   slug            String?
   metaDescription String?       @map("meta_description")
