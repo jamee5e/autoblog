@@ -97,6 +97,43 @@ export interface OrchestrationResponse {
   };
 }
 
+export type ScheduledJobStatus =
+  | "PENDING"
+  | "RUNNING"
+  | "COMPLETED"
+  | "FAILED"
+  | "CANCELLED";
+
+export type ScheduledJobAction =
+  | "GENERATE_ONLY"
+  | "GENERATE_AND_DRAFT";
+
+export interface ScheduledJob {
+  id: string;
+  websiteId: string;
+  topic: string;
+  primaryKeyword: string;
+  additionalInstructions: string | null;
+  scheduledAt: string;
+  timezone: string;
+  action: ScheduledJobAction;
+  status: ScheduledJobStatus;
+  lastError: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  website: {
+    name: string;
+  };
+  article: {
+    id: string;
+    status: string;
+    title: string | null;
+    wordpressPostId: string | null;
+    wordpressUrl: string | null;
+  } | null;
+}
+
 export interface ArticleSummary {
   id: string;
   topic: string;
