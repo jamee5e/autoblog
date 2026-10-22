@@ -76,6 +76,27 @@ export interface QualityReview {
   revisionInstructions: string[];
 }
 
+export interface OrchestrationResponse {
+  articleId: string;
+  status: string;
+  decision: QualityDecision;
+  revisionCount: number;
+  maxRevisions: number;
+  research: {
+    model: string;
+    usage: ResearchUsage;
+  };
+  writer: {
+    model: string;
+    usage: ResearchUsage;
+  };
+  quality: {
+    model: string;
+    usage: ResearchUsage;
+    review: QualityReview;
+  };
+}
+
 export interface ArticleSummary {
   id: string;
   topic: string;
