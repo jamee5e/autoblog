@@ -4,15 +4,19 @@ import { useRoute } from "vue-router";
 import AppLayout from "@/layouts/AppLayout.vue";
 import StatusBadge from "@/components/StatusBadge.vue";
 import { api, getApiErrorMessage } from "@/services/api";
+import { useAuthStore } from "@/stores/auth";
 import type { ArticlePreview } from "@/types";
 
 const route = useRoute();
+const auth = useAuthStore();
 const article = ref<ArticlePreview | null>(null);
 const errorMessage = ref("");
 const successMessage = ref("");
 const writing = ref(false);
 const checking = ref(false);
 const revising = ref(false);
+const savingWordPressDraft = ref(false);
+const publishingWordPress = ref(false);
 
 const loadArticle = async () => {
   try {
@@ -62,6 +66,60 @@ const runQualityReview = async () => {
     await loadArticle();
   } finally {
     checking.value = false;
+  }
+};
+
+const saveWordPressDraft = async () => {
+  if (!article.value || savingWordPressDraft.value || article.value.status !== "READY") return;
+
+  savingWordPressDraft.value = true;
+  errorMessage.value = "";
+  successMessage.value = "";
+
+  try {
+    const { data } = await api.post(`/articles/${route.params.id}/wordpress-draft`);
+    successMessage.value =
+      data.data.action === "updated"
+        ? "WordPress draft updated successfully."
+        : "WordPress draft created successfully.";
+    await loadArticle();
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(error, "Unable to save WordPress draft.");
+    await loadArticle();
+  } finally {
+    savingWordPressDraft.value = false;
+  }
+};
+
+const publishWordPress = async () => {
+  if (
+    !article.value?.wordpressPostId ||
+    publishingWordPress.value ||
+    article.value.status !== "READY" ||
+    !auth.isAdmin
+  ) {
+    return;
+  }
+
+  const confirmed = window.confirm(
+    "Publish this article to the live WordPress website now?"
+  );
+
+  if (!confirmed) return;
+
+  publishingWordPress.value = true;
+  errorMessage.value = "";
+  successMessage.value = "";
+
+  try {
+    await api.post(`/articles/${route.params.id}/publish`);
+    successMessage.value = "Article published to WordPress successfully.";
+    await loadArticle();
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(error, "Unable to publish article to WordPress.");
+    await loadArticle();
+  } finally {
+    publishingWordPress.value = false;
   }
 };
 
@@ -378,18 +436,81 @@ onMounted(loadArticle);
           </div>
         </template>
 
+        <div v-if="article.wordpressPostId" class="wordpress-status-panel">
+          <div>
+            <span class="meta-label">WORDPRESS DRAFT</span>
+            <strong>Post ID {{ article.wordpressPostId }}</strong>
+            <small>
+              {{ article.status === "PUBLISHED" ? "Published" : "Draft saved in WordPress" }}
+            </small>
+          </div>
+          <a
+            v-if="article.wordpressUrl"
+            class="secondary-button"
+            :href="article.wordpressUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Open WordPress →
+          </a>
+        </div>
+
         <div class="button-row top-gap">
           <button class="secondary-button" disabled>Edit</button>
           <button
             class="secondary-button"
             type="button"
-            :disabled="checking || !article.content"
+            :disabled="checking || !article.content || article.status === 'PUBLISHED'"
             @click="runQualityReview"
           >
             {{ article.qualityData ? "Run Review Again" : "Review" }}
           </button>
-          <button class="outline-button" disabled>Save Draft</button>
-          <button class="primary-button" disabled>Publish</button>
+
+          <button
+            class="outline-button"
+            type="button"
+            :disabled="
+              savingWordPressDraft ||
+              article.status !== 'READY' ||
+              article.status === 'PUBLISHED'
+            "
+            @click="saveWordPressDraft"
+          >
+            {{
+              savingWordPressDraft
+                ? "Saving to WordPress..."
+                : article.wordpressPostId
+                  ? "Update WordPress Draft"
+                  : "Save WordPress Draft"
+            }}
+          </button>
+
+          <button
+            class="primary-button"
+            type="button"
+            :disabled="
+              publishingWordPress ||
+              !auth.isAdmin ||
+              !article.wordpressPostId ||
+              article.status !== 'READY'
+            "
+            @click="publishWordPress"
+          >
+            {{
+              publishingWordPress
+                ? "Publishing..."
+                : article.status === "PUBLISHED"
+                  ? "Published"
+                  : "Publish to WordPress"
+            }}
+          </button>
+        </div>
+
+        <div
+          v-if="article.status === 'READY' && !auth.isAdmin"
+          class="empty-inline top-gap"
+        >
+          Editors can prepare the WordPress draft. Final publishing is restricted to Admin.
         </div>
       </section>
     </template>
