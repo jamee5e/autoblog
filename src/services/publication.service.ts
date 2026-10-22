@@ -31,6 +31,24 @@ const getArticleForPublication = async (companyId: string, articleId: string) =>
   return article;
 };
 
+const toWordPressArticleInput = (article: {
+  title: string | null;
+  content: string | null;
+  excerpt: string | null;
+  slug: string | null;
+}) => {
+  if (!article.title || !article.content) {
+    throw new HttpError(409, "Article content is incomplete");
+  }
+
+  return {
+    title: article.title,
+    content: article.content,
+    excerpt: article.excerpt ?? undefined,
+    slug: article.slug ?? undefined
+  };
+};
+
 export const saveArticleToWordPressDraft = async (input: {
   companyId: string;
   articleId: string;
@@ -41,12 +59,7 @@ export const saveArticleToWordPressDraft = async (input: {
     throw new HttpError(409, "Article must be READY before creating a WordPress draft");
   }
 
-  const payload = {
-    title: article.title,
-    content: article.content,
-    excerpt: article.excerpt ?? undefined,
-    slug: article.slug ?? undefined
-  };
+  const payload = toWordPressArticleInput(article);
 
   if (article.wordpressPostId) {
     await wordpressAdapter.updatePost(
@@ -128,12 +141,7 @@ export const publishArticleToWordPress = async (input: {
     await wordpressAdapter.updatePost(
       article.websiteId,
       article.wordpressPostId,
-      {
-        title: article.title,
-        content: article.content,
-        excerpt: article.excerpt ?? undefined,
-        slug: article.slug ?? undefined
-      }
+      toWordPressArticleInput(article)
     );
 
     await wordpressAdapter.publishPost(
