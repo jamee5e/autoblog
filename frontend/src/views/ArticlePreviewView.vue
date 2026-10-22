@@ -11,6 +11,8 @@ const article = ref<ArticlePreview | null>(null);
 const errorMessage = ref("");
 const successMessage = ref("");
 const writing = ref(false);
+const checking = ref(false);
+const revising = ref(false);
 
 const loadArticle = async () => {
   try {
@@ -40,6 +42,49 @@ const generateArticle = async () => {
   }
 };
 
+const runQualityReview = async () => {
+  if (!article.value?.content || checking.value) return;
+
+  checking.value = true;
+  errorMessage.value = "";
+  successMessage.value = "";
+
+  try {
+    const { data } = await api.post(`/articles/${route.params.id}/quality`);
+    const decision = data.data.review?.decision;
+    successMessage.value =
+      decision === "PASS"
+        ? "SEO & Quality Agent passed the article. It is ready for review."
+        : "SEO & Quality Agent found changes for the Writer Agent.";
+    await loadArticle();
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(error, "Unable to complete quality review.");
+    await loadArticle();
+  } finally {
+    checking.value = false;
+  }
+};
+
+const reviseFromQuality = async () => {
+  if (!article.value?.qualityData || revising.value) return;
+
+  revising.value = true;
+  errorMessage.value = "";
+  successMessage.value = "";
+
+  try {
+    await api.post(`/articles/${route.params.id}/revise`);
+    successMessage.value =
+      "Writer Agent completed the requested revision. Run the quality review again.";
+    await loadArticle();
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(error, "Unable to revise article draft.");
+    await loadArticle();
+  } finally {
+    revising.value = false;
+  }
+};
+
 onMounted(loadArticle);
 </script>
 
@@ -65,12 +110,15 @@ onMounted(loadArticle);
           <strong class="score-value">{{ article.seoScore ?? "—" }}</strong>
         </article>
         <article class="surface-card">
-          <span class="meta-label">STATUS</span>
-          <StatusBadge :status="article.status" />
+          <span class="meta-label">QUALITY SCORE</span>
+          <strong class="score-value">{{ article.qualityScore ?? "—" }}</strong>
         </article>
         <article class="surface-card wide">
-          <span class="meta-label">WEBSITE / KEYWORD</span>
-          <p>{{ article.website }} · {{ article.primaryKeyword }}</p>
+          <span class="meta-label">STATUS / WEBSITE</span>
+          <div class="summary-status-line">
+            <StatusBadge :status="article.status" />
+            <span>{{ article.website }} · {{ article.primaryKeyword }}</span>
+          </div>
         </article>
       </section>
 
@@ -174,13 +222,19 @@ onMounted(loadArticle);
           </div>
           <div v-if="article.writerRun" class="writer-run-meta">
             <span class="status-badge success">Writer Complete</span>
-            <small>{{ article.writerRun.model }} · Gemini</small>
+            <small>
+              {{ article.writerRun.model }} · Gemini
+              <template v-if="article.revisionCount > 0">
+                · Revision {{ article.revisionCount }}/2
+              </template>
+            </small>
           </div>
         </div>
 
         <div v-if="article.content">
+          <p v-if="article.excerpt" class="article-excerpt">{{ article.excerpt }}</p>
           <p v-if="article.metaDescription" class="article-meta-description">
-            {{ article.metaDescription }}
+            Meta: {{ article.metaDescription }}
           </p>
           <div class="article-content" v-html="article.content"></div>
         </div>
@@ -199,19 +253,141 @@ onMounted(loadArticle);
         </div>
       </section>
 
-      <section class="surface-card">
+      <section class="surface-card quality-review-card">
         <div class="card-heading">
           <div>
             <p class="eyebrow">SEO & QUALITY AGENT</p>
             <h2>Quality Review</h2>
           </div>
+          <div v-if="article.qualityRun" class="writer-run-meta">
+            <span
+              class="status-badge"
+              :class="article.qualityData?.decision === 'PASS' ? 'success' : 'progress'"
+            >
+              {{ article.qualityData?.decision === "PASS" ? "Passed" : "Review Complete" }}
+            </span>
+            <small>{{ article.qualityRun.model }} · Gemini</small>
+          </div>
         </div>
-        <div class="empty-inline">
-          Quality review will be the next step. During the pilot it will also use Gemini.
+
+        <div v-if="!article.content" class="empty-inline">
+          Complete the Writer Agent before running SEO & Quality.
         </div>
+
+        <div v-else-if="!article.qualityData" class="quality-empty-state">
+          <div>
+            <strong>Article draft is ready for quality review.</strong>
+            <span>
+              Gemini will score SEO and quality, check research consistency, and return revision feedback.
+            </span>
+          </div>
+          <button
+            class="primary-button"
+            type="button"
+            :disabled="checking"
+            @click="runQualityReview"
+          >
+            {{ checking ? "Quality Agent is reviewing..." : "Run SEO & Quality Review" }}
+          </button>
+        </div>
+
+        <template v-else>
+          <div class="quality-score-grid">
+            <div>
+              <span class="meta-label">DECISION</span>
+              <strong
+                class="quality-decision"
+                :class="article.qualityData.decision === 'PASS' ? 'pass' : 'revise'"
+              >
+                {{ article.qualityData.decision === "PASS" ? "PASS" : "REVISION REQUIRED" }}
+              </strong>
+            </div>
+            <div>
+              <span class="meta-label">SEO SCORE</span>
+              <strong>{{ article.qualityData.seoScore }}/100</strong>
+            </div>
+            <div>
+              <span class="meta-label">QUALITY SCORE</span>
+              <strong>{{ article.qualityData.qualityScore }}/100</strong>
+            </div>
+            <div>
+              <span class="meta-label">REVISION</span>
+              <strong>{{ article.revisionCount }}/2</strong>
+            </div>
+          </div>
+
+          <div class="quality-summary">
+            <span class="meta-label">REVIEW SUMMARY</span>
+            <p>{{ article.qualityData.summary }}</p>
+          </div>
+
+          <div class="quality-summary">
+            <span class="meta-label">META DESCRIPTION</span>
+            <p>{{ article.qualityData.metaDescription }}</p>
+          </div>
+
+          <div v-if="article.qualityData.issues.length" class="quality-issues">
+            <span class="meta-label">ISSUES</span>
+            <div
+              v-for="(issue, index) in article.qualityData.issues"
+              :key="`${issue.category}-${index}`"
+              class="quality-issue-item"
+            >
+              <div class="quality-issue-head">
+                <strong>{{ issue.category }}</strong>
+                <span class="severity-chip" :class="issue.severity.toLowerCase()">
+                  {{ issue.severity }}
+                </span>
+              </div>
+              <p>{{ issue.message }}</p>
+              <small>{{ issue.suggestion }}</small>
+            </div>
+          </div>
+
+          <div
+            v-if="article.qualityData.decision === 'PASS'"
+            class="info-banner green"
+          >
+            <strong>Ready for Review</strong>
+            <span>The article passed the current SEO & Quality thresholds.</span>
+          </div>
+
+          <div
+            v-else-if="article.revisionCount < 2"
+            class="quality-action-panel"
+          >
+            <div>
+              <strong>Writer revision available</strong>
+              <span>
+                The Writer Agent will revise only from the quality feedback. Maximum 2 revisions.
+              </span>
+            </div>
+            <button
+              class="primary-button"
+              type="button"
+              :disabled="revising"
+              @click="reviseFromQuality"
+            >
+              {{ revising ? "Writer Agent is revising..." : `Revise with Writer (${article.revisionCount + 1}/2)` }}
+            </button>
+          </div>
+
+          <div v-else class="info-banner amber">
+            <strong>Maximum AI revisions reached.</strong>
+            <span>Review the remaining issues manually before publishing.</span>
+          </div>
+        </template>
+
         <div class="button-row top-gap">
           <button class="secondary-button" disabled>Edit</button>
-          <button class="secondary-button" disabled>Regenerate</button>
+          <button
+            class="secondary-button"
+            type="button"
+            :disabled="checking || !article.content"
+            @click="runQualityReview"
+          >
+            {{ article.qualityData ? "Run Review Again" : "Review" }}
+          </button>
           <button class="outline-button" disabled>Save Draft</button>
           <button class="primary-button" disabled>Publish</button>
         </div>
