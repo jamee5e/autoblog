@@ -72,13 +72,27 @@ enum SystemLogLevel {
   ERROR
 }
 
+enum ScheduledJobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ScheduledJobAction {
+  GENERATE_ONLY
+  GENERATE_AND_DRAFT
+}
+
 model Company {
   id        String    @id @default(cuid())
   name      String
   createdAt DateTime  @default(now()) @map("created_at")
 
-  users    User[]
-  websites Website[]
+  users         User[]
+  websites      Website[]
+  scheduledJobs ScheduledJob[]
 
   @@map("companies")
 }
@@ -92,7 +106,8 @@ model User {
   role         UserRole
   createdAt    DateTime @default(now()) @map("created_at")
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  scheduledJobs ScheduledJob[]
 
   @@index([companyId])
   @@map("users")
@@ -113,6 +128,7 @@ model Website {
   company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   brandProfiles BrandProfile[]
   articles      Article[]
+  scheduledJobs ScheduledJob[]
 
   @@index([companyId])
   @@map("websites")
@@ -164,6 +180,7 @@ model Article {
   website       Website        @relation(fields: [websiteId], references: [id], onDelete: Cascade)
   aiRuns        AIRun[]
   notifications Notification[]
+  scheduledJob  ScheduledJob?
 
   @@index([websiteId])
   @@index([status])
@@ -219,4 +236,35 @@ model SystemLog {
   @@index([level])
   @@index([createdAt])
   @@map("system_logs")
+}
+
+
+model ScheduledJob {
+  id                     String             @id @default(cuid())
+  companyId              String             @map("company_id")
+  websiteId              String             @map("website_id")
+  createdById            String             @map("created_by_id")
+  articleId              String?            @unique @map("article_id")
+  topic                   String
+  primaryKeyword          String             @map("primary_keyword")
+  additionalInstructions String?            @map("additional_instructions")
+  scheduledAt            DateTime           @map("scheduled_at")
+  timezone               String             @default("Asia/Bangkok")
+  action                 ScheduledJobAction @default(GENERATE_AND_DRAFT)
+  status                 ScheduledJobStatus @default(PENDING)
+  lastError              String?            @map("last_error")
+  startedAt              DateTime?          @map("started_at")
+  completedAt            DateTime?          @map("completed_at")
+  createdAt              DateTime           @default(now()) @map("created_at")
+  updatedAt              DateTime           @updatedAt @map("updated_at")
+
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  website   Website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  createdBy User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  article   Article? @relation(fields: [articleId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([websiteId])
+  @@index([status, scheduledAt])
+  @@map("scheduled_jobs")
 }
