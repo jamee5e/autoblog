@@ -43,20 +43,20 @@ export const projectPhases: ProjectPhase[] = [
   {
     id: 3,
     name: "Gemini Research Agent",
-    status: "progress",
+    status: "complete",
     tasks: [
       { name: "Gemini API Integration", status: "complete" },
       { name: "Research Prompt", status: "complete" },
       { name: "Structured Research Output", status: "complete" },
       { name: "Research Run Logging", status: "complete" },
       { name: "Research Result UI", status: "complete" },
-      { name: "Final Acceptance Test", status: "progress" }
+      { name: "Final Acceptance Test", status: "complete" }
     ]
   },
   {
     id: 4,
     name: "Writer Agent (Gemini Pilot)",
-    status: "progress",
+    status: "complete",
     tasks: [
       { name: "Gemini Writer Integration", status: "complete" },
       { name: "Writer Prompt", status: "complete" },
@@ -64,18 +64,22 @@ export const projectPhases: ProjectPhase[] = [
       { name: "Brand Voice Rules", status: "complete" },
       { name: "AIRun Logging", status: "complete" },
       { name: "Article Preview Action", status: "complete" },
-      { name: "Acceptance Test", status: "progress" }
+      { name: "Acceptance Test", status: "complete" }
     ]
   },
   {
     id: 5,
     name: "SEO & Quality Agent (Gemini Pilot)",
-    status: "pending",
+    status: "progress",
     tasks: [
-      { name: "Gemini Quality Integration", status: "pending" },
-      { name: "SEO Review", status: "pending" },
-      { name: "Quality Score", status: "pending" },
-      { name: "Revision Feedback Loop", status: "pending" }
+      { name: "Gemini Quality Integration", status: "complete" },
+      { name: "Structured Quality Output", status: "complete" },
+      { name: "SEO Review", status: "complete" },
+      { name: "Quality Score", status: "complete" },
+      { name: "Revision Feedback Loop", status: "complete" },
+      { name: "Maximum 2 Revisions", status: "complete" },
+      { name: "Quality Review UI", status: "complete" },
+      { name: "Acceptance Test", status: "progress" }
     ]
   },
   {
