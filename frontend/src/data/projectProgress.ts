@@ -85,13 +85,15 @@ export const projectPhases: ProjectPhase[] = [
   {
     id: 6,
     name: "Final Workflow & Production",
-    status: "pending",
+    status: "progress",
     tasks: [
       { name: "AI Orchestration", status: "pending" },
-      { name: "Review & Publish Workflow", status: "pending" },
+      { name: "Review & Publish Workflow", status: "complete" },
+      { name: "WordPress Draft Workflow", status: "complete" },
+      { name: "Admin Publish Guard", status: "complete" },
       { name: "LINE Group Notification", status: "pending" },
       { name: "Production Deployment", status: "pending" },
-      { name: "Final Acceptance Test", status: "pending" }
+      { name: "Final Acceptance Test", status: "progress" }
     ]
   }
 ];
