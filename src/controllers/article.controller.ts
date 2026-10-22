@@ -5,6 +5,7 @@ import { prisma } from "../config/database";
 import { HttpError } from "../errors/http.error";
 import { requireAuthUser } from "../middlewares/auth.middleware";
 import { createArticleResearch } from "../services/research.service";
+import { orchestrateArticle } from "../services/orchestration.service";
 import { reviewArticleQuality, reviseArticleFromQuality } from "../services/quality.service";
 import {
   publishArticleToWordPress,
@@ -111,6 +112,28 @@ export const writeArticle = async (req: Request, res: Response): Promise<void> =
   });
 
   res.status(200).json({
+    success: true,
+    data: result
+  });
+};
+
+export const orchestrateArticleWorkflow = async (req: Request, res: Response): Promise<void> => {
+  const authUser = requireAuthUser(req);
+  const parsed = articleResearchSchema.safeParse(req.body);
+
+  if (!parsed.success) {
+    throw new HttpError(400, "Invalid orchestration request payload");
+  }
+
+  const result = await orchestrateArticle({
+    companyId: authUser.companyId,
+    websiteId: parsed.data.websiteId,
+    topic: parsed.data.topic,
+    primaryKeyword: parsed.data.primaryKeyword,
+    additionalInstructions: parsed.data.additionalInstructions
+  });
+
+  res.status(201).json({
     success: true,
     data: result
   });
