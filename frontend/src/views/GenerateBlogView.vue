@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from "vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import { api, getApiErrorMessage } from "@/services/api";
-import type { ResearchResponse, Website } from "@/types";
+import type { OrchestrationResponse, ResearchResponse, Website } from "@/types";
 
 const websites = ref<Website[]>([]);
 const selectedWebsite = ref("");
@@ -12,6 +12,8 @@ const instructions = ref("");
 const submitting = ref(false);
 const errorMessage = ref("");
 const researchResult = ref<ResearchResponse | null>(null);
+const orchestrationResult = ref<OrchestrationResponse | null>(null);
+const activeAction = ref<"research" | "full" | null>(null);
 
 const canResearch = computed(
   () =>
@@ -35,8 +37,10 @@ const researchTopic = async () => {
   if (!canResearch.value) return;
 
   submitting.value = true;
+  activeAction.value = "research";
   errorMessage.value = "";
   researchResult.value = null;
+  orchestrationResult.value = null;
 
   try {
     const { data } = await api.post("/articles/research", {
@@ -51,6 +55,36 @@ const researchTopic = async () => {
     errorMessage.value = getApiErrorMessage(error, "Unable to complete Gemini research.");
   } finally {
     submitting.value = false;
+    activeAction.value = null;
+  }
+};
+
+const generateFullArticle = async () => {
+  if (!canResearch.value) return;
+
+  submitting.value = true;
+  activeAction.value = "full";
+  errorMessage.value = "";
+  researchResult.value = null;
+  orchestrationResult.value = null;
+
+  try {
+    const { data } = await api.post("/articles/orchestrate", {
+      websiteId: selectedWebsite.value,
+      topic: topic.value.trim(),
+      primaryKeyword: keyword.value.trim(),
+      additionalInstructions: instructions.value.trim() || undefined
+    });
+
+    orchestrationResult.value = data.data;
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(
+      error,
+      "Unable to complete the full AI article workflow."
+    );
+  } finally {
+    submitting.value = false;
+    activeAction.value = null;
   }
 };
 
@@ -63,9 +97,9 @@ onMounted(loadWebsites);
       <div>
         <p class="eyebrow">AI CONTENT WORKFLOW</p>
         <h1>Generate Blog</h1>
-        <p>เริ่มจาก Research Agent ก่อนส่งต่อให้ Writer และ SEO & Quality Agent</p>
+        <p>สร้างบทความแบบครบ Flow: Research → Writer → SEO & Quality → Ready for Review</p>
       </div>
-      <span class="status-badge progress">Phase 3 Active</span>
+      <span class="status-badge progress">Full AI Workflow Active</span>
     </div>
 
     <div v-if="errorMessage" class="alert danger">{{ errorMessage }}</div>
@@ -79,7 +113,7 @@ onMounted(loadWebsites);
           </div>
         </div>
 
-        <form class="form-grid" @submit.prevent="researchTopic">
+        <form class="form-grid" @submit.prevent="generateFullArticle">
           <label>
             Website
             <select v-model="selectedWebsite" :disabled="submitting">
@@ -120,9 +154,35 @@ onMounted(loadWebsites);
             ></textarea>
           </label>
 
-          <button class="primary-button full" type="submit" :disabled="!canResearch">
-            {{ submitting ? "Gemini is researching..." : "Research Topic with Gemini" }}
-          </button>
+          <div class="button-row full">
+            <button class="primary-button" type="submit" :disabled="!canResearch">
+              {{
+                activeAction === "full"
+                  ? "AI workflow is running..."
+                  : "Generate Full Article"
+              }}
+            </button>
+            <button
+              class="secondary-button"
+              type="button"
+              :disabled="!canResearch"
+              @click="researchTopic"
+            >
+              {{
+                activeAction === "research"
+                  ? "Gemini is researching..."
+                  : "Research Only"
+              }}
+            </button>
+          </div>
+
+          <div v-if="activeAction === 'full'" class="info-banner green full">
+            <strong>Full workflow is running.</strong>
+            <span>
+              Research, Writer, and Quality agents are working in sequence. If needed,
+              Writer revisions will run automatically up to 2 times.
+            </span>
+          </div>
         </form>
       </article>
 
@@ -166,10 +226,64 @@ onMounted(loadWebsites);
         </div>
 
         <div class="info-banner green">
-          <strong>Gemini Research is active.</strong>
-          <span>Research is active. Writer and Quality agents are being enabled next using Gemini for the pilot.</span>
+          <strong>Full AI workflow is active.</strong>
+          <span>
+            One click can now run Research → Writer → Quality with up to 2 automatic revisions.
+            WordPress Draft and Publish remain manual for human approval.
+          </span>
         </div>
       </article>
+    </section>
+
+
+    <section v-if="orchestrationResult" class="surface-card research-result-card">
+      <div class="research-result-header">
+        <div>
+          <p class="eyebrow">FULL WORKFLOW COMPLETE</p>
+          <h2>{{ topic }}</h2>
+          <p>
+            {{ orchestrationResult.decision === "PASS" ? "Ready for Review" : "Manual Review Needed" }}
+            · Revision {{ orchestrationResult.revisionCount }}/{{ orchestrationResult.maxRevisions }}
+          </p>
+        </div>
+        <RouterLink class="primary-button" :to="`/articles/${orchestrationResult.articleId}`">
+          Review Article →
+        </RouterLink>
+      </div>
+
+      <div class="quality-score-grid">
+        <div>
+          <span class="meta-label">FINAL STATUS</span>
+          <strong>{{ orchestrationResult.status }}</strong>
+        </div>
+        <div>
+          <span class="meta-label">DECISION</span>
+          <strong>{{ orchestrationResult.decision }}</strong>
+        </div>
+        <div>
+          <span class="meta-label">SEO SCORE</span>
+          <strong>{{ orchestrationResult.quality.review.seoScore }}/100</strong>
+        </div>
+        <div>
+          <span class="meta-label">QUALITY SCORE</span>
+          <strong>{{ orchestrationResult.quality.review.qualityScore }}/100</strong>
+        </div>
+      </div>
+
+      <div class="research-overview-grid">
+        <div class="research-block">
+          <span class="meta-label">RESEARCH MODEL</span>
+          <p>{{ orchestrationResult.research.model }}</p>
+        </div>
+        <div class="research-block">
+          <span class="meta-label">WRITER MODEL</span>
+          <p>{{ orchestrationResult.writer.model }}</p>
+        </div>
+        <div class="research-block">
+          <span class="meta-label">QUALITY MODEL</span>
+          <p>{{ orchestrationResult.quality.model }}</p>
+        </div>
+      </div>
     </section>
 
     <section v-if="researchResult" class="surface-card research-result-card">
