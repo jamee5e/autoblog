@@ -5,6 +5,7 @@ import { prisma } from "../config/database";
 import { HttpError } from "../errors/http.error";
 import { requireAuthUser } from "../middlewares/auth.middleware";
 import { createArticleResearch } from "../services/research.service";
+import { reviewArticleQuality, reviseArticleFromQuality } from "../services/quality.service";
 import { writeArticleDraft } from "../services/writer.service";
 
 const articleIdSchema = z.string().min(1);
@@ -15,6 +16,44 @@ const articleResearchSchema = z.object({
   primaryKeyword: z.string().trim().min(1).max(200),
   additionalInstructions: z.string().trim().max(2000).optional()
 });
+
+export const reviewArticle = async (req: Request, res: Response): Promise<void> => {
+  const authUser = requireAuthUser(req);
+  const parsedId = articleIdSchema.safeParse(req.params.id);
+
+  if (!parsedId.success) {
+    throw new HttpError(400, "Invalid article id");
+  }
+
+  const result = await reviewArticleQuality({
+    companyId: authUser.companyId,
+    articleId: parsedId.data
+  });
+
+  res.status(200).json({
+    success: true,
+    data: result
+  });
+};
+
+export const reviseArticle = async (req: Request, res: Response): Promise<void> => {
+  const authUser = requireAuthUser(req);
+  const parsedId = articleIdSchema.safeParse(req.params.id);
+
+  if (!parsedId.success) {
+    throw new HttpError(400, "Invalid article id");
+  }
+
+  const result = await reviseArticleFromQuality({
+    companyId: authUser.companyId,
+    articleId: parsedId.data
+  });
+
+  res.status(200).json({
+    success: true,
+    data: result
+  });
+};
 
 export const writeArticle = async (req: Request, res: Response): Promise<void> => {
   const authUser = requireAuthUser(req);
@@ -119,7 +158,12 @@ export const getArticlePreview = async (req: Request, res: Response): Promise<vo
       primaryKeyword: true,
       additionalInstructions: true,
       researchData: true,
+      qualityData: true,
+      qualityScore: true,
+      revisionCount: true,
       title: true,
+      slug: true,
+      excerpt: true,
       metaDescription: true,
       seoScore: true,
       content: true,
@@ -172,7 +216,12 @@ export const getArticlePreview = async (req: Request, res: Response): Promise<vo
       primaryKeyword: article.primaryKeyword,
       additionalInstructions: article.additionalInstructions,
       researchData: article.researchData,
+      qualityData: article.qualityData,
+      qualityScore: article.qualityScore,
+      revisionCount: article.revisionCount,
       title: article.title,
+      slug: article.slug,
+      excerpt: article.excerpt,
       metaDescription: article.metaDescription,
       seoScore: article.seoScore,
       content: article.content,
