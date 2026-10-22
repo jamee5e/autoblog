@@ -88,6 +88,8 @@ export const projectPhases: ProjectPhase[] = [
     status: "progress",
     tasks: [
       { name: "AI Orchestration", status: "complete" },
+      { name: "Scheduled Date & Time Automation", status: "complete" },
+      { name: "Persistent Schedule Worker", status: "complete" },
       { name: "Review & Publish Workflow", status: "complete" },
       { name: "WordPress Draft Workflow", status: "complete" },
       { name: "Admin Publish Guard", status: "complete" },
