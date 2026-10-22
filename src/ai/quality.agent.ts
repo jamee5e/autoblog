@@ -221,9 +221,14 @@ export const runQualityAgent = async (
     parsedReview.data.qualityScore < 80 ||
     hasHighIssue;
 
-  const fallbackRevisionInstructions = parsedReview.data.issues
+  const issueRevisionInstructions = parsedReview.data.issues
     .filter((issue) => issue.severity !== "LOW")
     .map((issue) => issue.suggestion);
+
+  const fallbackRevisionInstructions =
+    issueRevisionInstructions.length > 0
+      ? issueRevisionInstructions
+      : [`Improve the draft based on this quality review: ${parsedReview.data.summary}`];
 
   const normalizedReview: QualityReview = {
     ...parsedReview.data,
