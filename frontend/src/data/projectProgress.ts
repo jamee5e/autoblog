@@ -70,7 +70,7 @@ export const projectPhases: ProjectPhase[] = [
   {
     id: 5,
     name: "SEO & Quality Agent (Gemini Pilot)",
-    status: "progress",
+    status: "complete",
     tasks: [
       { name: "Gemini Quality Integration", status: "complete" },
       { name: "Structured Quality Output", status: "complete" },
@@ -79,7 +79,7 @@ export const projectPhases: ProjectPhase[] = [
       { name: "Revision Feedback Loop", status: "complete" },
       { name: "Maximum 2 Revisions", status: "complete" },
       { name: "Quality Review UI", status: "complete" },
-      { name: "Acceptance Test", status: "progress" }
+      { name: "Acceptance Test", status: "complete" }
     ]
   },
   {
@@ -87,7 +87,7 @@ export const projectPhases: ProjectPhase[] = [
     name: "Final Workflow & Production",
     status: "progress",
     tasks: [
-      { name: "AI Orchestration", status: "pending" },
+      { name: "AI Orchestration", status: "complete" },
       { name: "Review & Publish Workflow", status: "complete" },
       { name: "WordPress Draft Workflow", status: "complete" },
       { name: "Admin Publish Guard", status: "complete" },
