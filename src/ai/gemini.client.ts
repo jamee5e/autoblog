@@ -21,3 +21,10 @@ export const getGeminiWriterModel = (): string =>
 
 export const getGeminiWriterFallbackModel = (): string =>
   env.GEMINI_WRITER_FALLBACK_MODEL;
+
+
+export const getGeminiQualityModel = (): string =>
+  env.GEMINI_QUALITY_MODEL ?? env.GEMINI_MODEL;
+
+export const getGeminiQualityFallbackModel = (): string =>
+  env.GEMINI_QUALITY_FALLBACK_MODEL;
