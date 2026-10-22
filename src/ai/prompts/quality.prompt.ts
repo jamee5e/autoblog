@@ -40,7 +40,7 @@ export const buildQualityPrompt = (input: QualityPromptInput): string => {
     "- Consistency with the research brief; flag unsupported or contradictory claims.",
     "- Brand tone, target audience, prohibited terms, and SEO rules.",
     "- Title usefulness and click clarity.",
-    "- Create a concise meta description suitable for search results.",
+    "- Create a concise meta description of roughly 120-160 characters suitable for search results.",
     "",
     `Website: ${input.websiteName}`,
     `Language: ${input.language?.trim() || "English"}`,
