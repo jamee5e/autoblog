@@ -6,6 +6,10 @@ import { HttpError } from "../errors/http.error";
 import { requireAuthUser } from "../middlewares/auth.middleware";
 import { createArticleResearch } from "../services/research.service";
 import { reviewArticleQuality, reviseArticleFromQuality } from "../services/quality.service";
+import {
+  publishArticleToWordPress,
+  saveArticleToWordPressDraft
+} from "../services/publication.service";
 import { writeArticleDraft } from "../services/writer.service";
 
 const articleIdSchema = z.string().min(1);
@@ -16,6 +20,44 @@ const articleResearchSchema = z.object({
   primaryKeyword: z.string().trim().min(1).max(200),
   additionalInstructions: z.string().trim().max(2000).optional()
 });
+
+export const saveWordPressDraft = async (req: Request, res: Response): Promise<void> => {
+  const authUser = requireAuthUser(req);
+  const parsedId = articleIdSchema.safeParse(req.params.id);
+
+  if (!parsedId.success) {
+    throw new HttpError(400, "Invalid article id");
+  }
+
+  const result = await saveArticleToWordPressDraft({
+    companyId: authUser.companyId,
+    articleId: parsedId.data
+  });
+
+  res.status(200).json({
+    success: true,
+    data: result
+  });
+};
+
+export const publishWordPressArticle = async (req: Request, res: Response): Promise<void> => {
+  const authUser = requireAuthUser(req);
+  const parsedId = articleIdSchema.safeParse(req.params.id);
+
+  if (!parsedId.success) {
+    throw new HttpError(400, "Invalid article id");
+  }
+
+  const result = await publishArticleToWordPress({
+    companyId: authUser.companyId,
+    articleId: parsedId.data
+  });
+
+  res.status(200).json({
+    success: true,
+    data: result
+  });
+};
 
 export const reviewArticle = async (req: Request, res: Response): Promise<void> => {
   const authUser = requireAuthUser(req);
@@ -168,6 +210,9 @@ export const getArticlePreview = async (req: Request, res: Response): Promise<vo
       seoScore: true,
       content: true,
       status: true,
+      wordpressPostId: true,
+      wordpressUrl: true,
+      publishedAt: true,
       createdAt: true,
       website: {
         select: {
@@ -226,6 +271,9 @@ export const getArticlePreview = async (req: Request, res: Response): Promise<vo
       seoScore: article.seoScore,
       content: article.content,
       status: article.status,
+      wordpressPostId: article.wordpressPostId,
+      wordpressUrl: article.wordpressUrl,
+      publishedAt: article.publishedAt,
       createdAt: article.createdAt,
       website: article.website.name,
       researchRun: latestResearchRun,
