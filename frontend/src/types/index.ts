@@ -125,6 +125,9 @@ export interface ArticlePreview {
   seoScore: number | null;
   content: string | null;
   status: string;
+  wordpressPostId: string | null;
+  wordpressUrl: string | null;
+  publishedAt: string | null;
   createdAt: string;
 }
 
