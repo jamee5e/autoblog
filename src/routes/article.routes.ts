@@ -4,9 +4,11 @@ import {
   getArticlePermissions,
   getArticlePreview,
   listArticles,
+  publishWordPressArticle,
   researchArticle,
   reviewArticle,
   reviseArticle,
+  saveWordPressDraft,
   writeArticle
 } from "../controllers/article.controller";
 import { authorizeRoles } from "../middlewares/auth.middleware";
@@ -18,5 +20,7 @@ articleRouter.post("/research", authorizeRoles(UserRole.ADMIN, UserRole.EDITOR),
 articleRouter.post("/:id/write", authorizeRoles(UserRole.ADMIN, UserRole.EDITOR), writeArticle);
 articleRouter.post("/:id/quality", authorizeRoles(UserRole.ADMIN, UserRole.EDITOR), reviewArticle);
 articleRouter.post("/:id/revise", authorizeRoles(UserRole.ADMIN, UserRole.EDITOR), reviseArticle);
+articleRouter.post("/:id/wordpress-draft", authorizeRoles(UserRole.ADMIN, UserRole.EDITOR), saveWordPressDraft);
+articleRouter.post("/:id/publish", authorizeRoles(UserRole.ADMIN), publishWordPressArticle);
 articleRouter.get("/permissions", authorizeRoles(UserRole.ADMIN, UserRole.EDITOR), getArticlePermissions);
 articleRouter.get("/:id", authorizeRoles(UserRole.ADMIN, UserRole.EDITOR), getArticlePreview);
