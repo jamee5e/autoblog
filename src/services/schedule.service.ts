@@ -245,6 +245,22 @@ export const processDueScheduledJobs = async (): Promise<void> => {
   workerBusy = true;
 
   try {
+    const staleBefore = new Date(Date.now() - 30 * 60 * 1000);
+
+    await prisma.scheduledJob.updateMany({
+      where: {
+        status: ScheduledJobStatus.RUNNING,
+        startedAt: {
+          lte: staleBefore
+        }
+      },
+      data: {
+        status: ScheduledJobStatus.PENDING,
+        startedAt: null,
+        lastError: "Recovered after an interrupted schedule worker"
+      }
+    });
+
     const dueJobs = await prisma.scheduledJob.findMany({
       where: {
         status: ScheduledJobStatus.PENDING,
@@ -285,11 +301,22 @@ export const processDueScheduledJobs = async (): Promise<void> => {
 
 const SCHEDULER_INTERVAL_MS = 15_000;
 
+const runScheduleWorkerTick = async (): Promise<void> => {
+  try {
+    await processDueScheduledJobs();
+  } catch (error) {
+    console.error(
+      "Schedule worker tick failed",
+      error instanceof Error ? error.message : error
+    );
+  }
+};
+
 export const startScheduleWorker = (): void => {
-  void processDueScheduledJobs();
+  void runScheduleWorkerTick();
 
   const timer = setInterval(() => {
-    void processDueScheduledJobs();
+    void runScheduleWorkerTick();
   }, SCHEDULER_INTERVAL_MS);
 
   timer.unref();
