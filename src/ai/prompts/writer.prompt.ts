@@ -4,6 +4,13 @@ export interface WriterPromptInput {
   primaryKeyword: string;
   additionalInstructions?: string | null;
   researchData: unknown;
+  currentDraft?: {
+    title: string;
+    slug?: string | null;
+    excerpt?: string | null;
+    content: string;
+  };
+  revisionInstructions?: string[];
   language?: string;
   brandContext?: {
     tone?: string;
@@ -24,10 +31,16 @@ export const buildWriterPrompt = (input: WriterPromptInput): string => {
   const language = input.language?.trim() || "English";
   const instructions = input.additionalInstructions?.trim() || "None";
   const brand = input.brandContext;
+  const isRevision = Boolean(input.currentDraft);
+  const revisionInstructions = input.revisionInstructions?.length
+    ? input.revisionInstructions
+    : [];
 
   return [
     "You are the Writer Agent for a travel content publishing workflow.",
-    "Write a useful, trustworthy article using the supplied research brief.",
+    isRevision
+      ? "Revise the existing article using the quality feedback while preserving strong content."
+      : "Write a useful, trustworthy article using the supplied research brief.",
     "",
     "Writing rules:",
     "- Treat the research brief as the factual source for this draft.",
@@ -62,6 +75,21 @@ export const buildWriterPrompt = (input: WriterPromptInput): string => {
     "Research brief:",
     JSON.stringify(input.researchData),
     "",
+    ...(isRevision
+      ? [
+          "Existing draft:",
+          JSON.stringify(input.currentDraft),
+          "",
+          "Required revision instructions:",
+          JSON.stringify(revisionInstructions),
+          "",
+          "Revision rules:",
+          "- Address every revision instruction that is relevant and supported by the research.",
+          "- Do not introduce new unsupported facts while revising.",
+          "- Preserve useful sections that do not need changes.",
+          ""
+        ]
+      : []),
     "Return only the requested structured article draft."
   ].join("\n");
 };
