@@ -31,7 +31,8 @@ export const listSystemLogs = async (req: Request, res: Response): Promise<void>
       createdAt: true,
       level: true,
       module: true,
-      message: true
+      message: true,
+      metadata: true
     },
     orderBy: { createdAt: "desc" },
     take: 200
