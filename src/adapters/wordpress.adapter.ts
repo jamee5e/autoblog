@@ -9,6 +9,7 @@ export interface WordPressArticleInput {
   content: string;
   excerpt?: string;
   slug?: string;
+  featuredMediaId?: number;
 }
 
 export interface UploadMediaInput {
@@ -165,6 +166,29 @@ const wordpressContentItemSchema = z.object({
 
 const wordpressContentListSchema = z.array(wordpressContentItemSchema);
 
+const wordpressMediaItemSchema = z.object({
+  id: z.number(),
+  source_url: z.string(),
+  mime_type: z.string().optional(),
+  media_type: z.string().optional(),
+  title: z.object({
+    rendered: z.string()
+  }),
+  alt_text: z.string().optional().default(""),
+  caption: z.object({
+    rendered: z.string()
+  }).optional(),
+  description: z.object({
+    rendered: z.string()
+  }).optional(),
+  media_details: z.object({
+    width: z.number().optional(),
+    height: z.number().optional()
+  }).passthrough().optional()
+});
+
+const wordpressMediaListSchema = z.array(wordpressMediaItemSchema);
+
 export const wordpressAdapter = {
   async testConnection(websiteId: string): Promise<{ website: string }> {
     const context = { action: "testConnection", websiteId };
@@ -201,6 +225,9 @@ export const wordpressAdapter = {
           content: article.content,
           excerpt: article.excerpt,
           slug: article.slug,
+          ...(article.featuredMediaId
+            ? { featured_media: article.featuredMediaId }
+            : {}),
           status: "draft"
         }
       });
@@ -229,7 +256,10 @@ export const wordpressAdapter = {
           title: article.title,
           content: article.content,
           excerpt: article.excerpt,
-          slug: article.slug
+          slug: article.slug,
+          ...(article.featuredMediaId
+            ? { featured_media: article.featuredMediaId }
+            : {})
         }
       });
     } catch (error) {
@@ -295,6 +325,55 @@ export const wordpressAdapter = {
     } catch (error) {
       await toErrorMetadata(error, context);
       throw new HttpError(502, "Unable to upload media to WordPress");
+    }
+  },
+
+  async getMediaLibrary(websiteId: string): Promise<Array<{
+    id: number;
+    title: string;
+    sourceUrl: string;
+    altText: string;
+    caption: string;
+    description: string;
+    mimeType: string | null;
+    width: number | null;
+    height: number | null;
+  }>> {
+    const context = { action: "getMediaLibrary", websiteId };
+
+    try {
+      const first = await requestWordPressCollection<unknown>({
+        websiteId,
+        endpoint:
+          "/media?media_type=image&per_page=100&page=1&_fields=id,source_url,mime_type,media_type,title,alt_text,caption,description,media_details"
+      });
+
+      const items = wordpressMediaListSchema.parse(first.data);
+
+      for (let page = 2; page <= first.totalPages; page += 1) {
+        const next = await requestWordPressCollection<unknown>({
+          websiteId,
+          endpoint:
+            `/media?media_type=image&per_page=100&page=${page}&_fields=id,source_url,mime_type,media_type,title,alt_text,caption,description,media_details`
+        });
+
+        items.push(...wordpressMediaListSchema.parse(next.data));
+      }
+
+      return items.map((item) => ({
+        id: item.id,
+        title: item.title.rendered,
+        sourceUrl: item.source_url,
+        altText: item.alt_text || "",
+        caption: item.caption?.rendered || "",
+        description: item.description?.rendered || "",
+        mimeType: item.mime_type || null,
+        width: item.media_details?.width ?? null,
+        height: item.media_details?.height ?? null
+      }));
+    } catch (error) {
+      await toErrorMetadata(error, context);
+      throw new HttpError(502, "Unable to fetch WordPress media library");
     }
   },
 
