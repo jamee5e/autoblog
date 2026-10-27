@@ -200,7 +200,8 @@ const syncWordPress = async () => {
       type: "success",
       text:
         `WordPress sync complete: ${data.data.created} new, ` +
-        `${data.data.updated} updated from ${data.data.totalFromWordPress} published items.`
+        `${data.data.updated} updated, ${data.data.deactivated} deactivated ` +
+        `from ${data.data.totalFromWordPress} published items.`
     };
 
     await loadData();
