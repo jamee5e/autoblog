@@ -14,6 +14,7 @@ export interface WriterPromptInput {
   allowedInternalLinks?: Array<{
     title: string;
     url: string;
+    contentType?: string | null;
     targetKeywords: string[];
     anchorSuggestions: string[];
   }>;
