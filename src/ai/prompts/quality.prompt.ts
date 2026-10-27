@@ -2,6 +2,10 @@ export interface QualityPromptInput {
   websiteName: string;
   topic: string;
   primaryKeyword: string;
+  contentFormat?: "AUTO" | "LIST_GUIDE" | "DESTINATION_GUIDE" | "COMPARISON" | "PLANNING_GUIDE";
+  targetWordMin?: number;
+  targetWordMax?: number;
+  suggestedSections?: number | null;
   researchData: unknown;
   title: string;
   excerpt?: string | null;
@@ -40,12 +44,18 @@ export const buildQualityPrompt = (input: QualityPromptInput): string => {
     "- Consistency with the research brief; flag unsupported or contradictory claims.",
     "- Brand tone, target audience, prohibited terms, and SEO rules.",
     "- Title usefulness and click clarity.",
+    "- Match the selected content format and travel-guide structure.",
+    "- Keep paragraphs readable and avoid generic AI-style filler, repetitive promotional adjectives, or unnecessary conclusion sections.",
+    "- Internal links should feel contextually useful rather than forced.",
     "- Create a concise meta description of roughly 120-160 characters suitable for search results.",
     "",
     `Website: ${input.websiteName}`,
     `Language: ${input.language?.trim() || "English"}`,
     `Topic: ${input.topic}`,
     `Primary keyword: ${input.primaryKeyword}`,
+    `Content format: ${input.contentFormat ?? "AUTO"}`,
+    `Target length: ${input.targetWordMin ?? 700}-${input.targetWordMax ?? 1000} words`,
+    `Suggested main sections: ${input.suggestedSections ?? "Flexible"}`,
     "",
     "Brand context:",
     `- Tone: ${brand?.tone || "Not provided"}`,
