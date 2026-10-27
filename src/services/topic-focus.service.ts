@@ -243,3 +243,73 @@ export const markTopicFocusUsed = async (topicFocusId: string) =>
       }
     }
   });
+
+
+const isFocusActiveForDate = (focus: BlogTopicFocus, now = new Date()) => {
+  if (!focus.active) return false;
+
+  const today = new Date(Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate()
+  ));
+
+  if (focus.startDate && focus.startDate.getTime() > today.getTime()) {
+    return false;
+  }
+
+  if (focus.endDate && focus.endDate.getTime() < today.getTime()) {
+    return false;
+  }
+
+  return true;
+};
+
+export const getTopicFocusForWebsite = async (
+  companyId: string,
+  websiteId: string,
+  topicFocusId: string,
+  now = new Date()
+): Promise<BlogTopicFocus> => {
+  await getAuthorizedWebsite(companyId, websiteId);
+
+  const focus = await prisma.blogTopicFocus.findFirst({
+    where: {
+      id: topicFocusId,
+      websiteId,
+      website: {
+        companyId
+      }
+    }
+  });
+
+  if (!focus) {
+    throw new HttpError(404, "Blog Topic Focus not found");
+  }
+
+  if (!isFocusActiveForDate(focus, now)) {
+    throw new HttpError(409, "Selected Blog Topic Focus is inactive or outside its active date range");
+  }
+
+  return focus;
+};
+
+export const buildResearchInputFromTopicFocus = (focus: BlogTopicFocus) => {
+  const keywordList = focus.keywords.filter(Boolean);
+  const primaryKeyword = keywordList[0] || focus.focusTopic;
+
+  const instructionParts = [
+    `Campaign: ${focus.title}`,
+    `Focus topic: ${focus.focusTopic}`,
+    keywordList.length > 0 ? `Keywords to cover naturally: ${keywordList.join(", ")}` : "",
+    focus.angle ? `Content angle: ${focus.angle}` : "",
+    focus.notes ? `Campaign notes / restrictions: ${focus.notes}` : "",
+    "Create a useful, distinct article within this focus. Do not simply repeat the campaign title as the final article title."
+  ].filter(Boolean);
+
+  return {
+    topic: focus.focusTopic,
+    primaryKeyword,
+    additionalInstructions: instructionParts.join("\n\n")
+  };
+};
