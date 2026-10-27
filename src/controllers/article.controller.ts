@@ -1,4 +1,4 @@
-import { AIAgentType, UserRole } from "@prisma/client";
+import { AIAgentType, ContentFormat, UserRole } from "@prisma/client";
 import { Request, Response } from "express";
 import { z } from "zod";
 import { prisma } from "../config/database";
@@ -22,8 +22,20 @@ const articleResearchSchema = z.object({
   websiteId: z.string().min(1),
   topic: z.string().trim().min(3).max(300),
   primaryKeyword: z.string().trim().min(1).max(200),
-  additionalInstructions: z.string().trim().max(2000).optional()
-});
+  additionalInstructions: z.string().trim().max(2000).optional(),
+  contentFormat: z.nativeEnum(ContentFormat).optional(),
+  targetWordMin: z.number().int().min(400).max(2500).optional(),
+  targetWordMax: z.number().int().min(400).max(2500).optional(),
+  suggestedSections: z.number().int().min(3).max(20).nullable().optional()
+}).refine(
+  (value) =>
+    value.targetWordMin === undefined ||
+    value.targetWordMax === undefined ||
+    value.targetWordMin <= value.targetWordMax,
+  {
+    message: "Minimum word target must be less than or equal to maximum"
+  }
+);
 
 const topicFocusOrchestrationSchema = z.object({
   websiteId: z.string().min(1),
@@ -161,7 +173,11 @@ export const orchestrateArticleWorkflow = async (req: Request, res: Response): P
     websiteId: parsed.data.websiteId,
     topic: parsed.data.topic,
     primaryKeyword: parsed.data.primaryKeyword,
-    additionalInstructions: parsed.data.additionalInstructions
+    additionalInstructions: parsed.data.additionalInstructions,
+    contentFormat: parsed.data.contentFormat,
+    targetWordMin: parsed.data.targetWordMin,
+    targetWordMax: parsed.data.targetWordMax,
+    suggestedSections: parsed.data.suggestedSections
   });
 
   res.status(201).json({
@@ -183,7 +199,11 @@ export const researchArticle = async (req: Request, res: Response): Promise<void
     websiteId: parsed.data.websiteId,
     topic: parsed.data.topic,
     primaryKeyword: parsed.data.primaryKeyword,
-    additionalInstructions: parsed.data.additionalInstructions
+    additionalInstructions: parsed.data.additionalInstructions,
+    contentFormat: parsed.data.contentFormat,
+    targetWordMin: parsed.data.targetWordMin,
+    targetWordMax: parsed.data.targetWordMax,
+    suggestedSections: parsed.data.suggestedSections
   });
 
   res.status(201).json({
