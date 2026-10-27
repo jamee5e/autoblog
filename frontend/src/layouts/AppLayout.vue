@@ -35,6 +35,7 @@ const logout = async () => {
       <nav class="app-nav">
         <RouterLink to="/dashboard">Dashboard</RouterLink>
         <RouterLink to="/generate">Generate Blog</RouterLink>
+        <RouterLink to="/topic-focuses">Blog Topic Focus</RouterLink>
         <RouterLink to="/articles">Articles</RouterLink>
         <RouterLink to="/websites">Websites</RouterLink>
         <RouterLink to="/project-progress">Project Progress</RouterLink>
