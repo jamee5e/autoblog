@@ -1,4 +1,5 @@
 import {
+  ScheduledContentSource,
   ScheduledJobAction
 } from "@prisma/client";
 import { Request, Response } from "express";
@@ -15,14 +16,38 @@ const scheduledJobIdSchema = z.string().min(1);
 
 const createScheduleSchema = z.object({
   websiteId: z.string().min(1),
-  topic: z.string().trim().min(3).max(300),
-  primaryKeyword: z.string().trim().min(1).max(200),
+  contentSource: z.nativeEnum(ScheduledContentSource).default(
+    ScheduledContentSource.MANUAL
+  ),
+  topicFocusId: z.string().min(1).optional(),
+  topic: z.string().trim().min(3).max(300).optional(),
+  primaryKeyword: z.string().trim().min(1).max(200).optional(),
   additionalInstructions: z.string().trim().max(2000).optional(),
   scheduledAt: z.string().min(1),
   timezone: z.string().trim().min(1).max(100).default("Asia/Bangkok"),
   action: z.nativeEnum(ScheduledJobAction).default(
     ScheduledJobAction.GENERATE_AND_DRAFT
   )
+}).superRefine((value, context) => {
+  if (
+    value.contentSource === ScheduledContentSource.MANUAL &&
+    (!value.topic || !value.primaryKeyword)
+  ) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Manual schedules require topic and primary keyword"
+    });
+  }
+
+  if (
+    value.contentSource === ScheduledContentSource.TOPIC_FOCUS_SELECTED &&
+    !value.topicFocusId
+  ) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Selected Topic Focus schedules require topicFocusId"
+    });
+  }
 });
 
 export const createSchedule = async (
@@ -46,6 +71,8 @@ export const createSchedule = async (
     companyId: authUser.companyId,
     createdById: authUser.id,
     websiteId: parsed.data.websiteId,
+    contentSource: parsed.data.contentSource,
+    topicFocusId: parsed.data.topicFocusId,
     topic: parsed.data.topic,
     primaryKeyword: parsed.data.primaryKeyword,
     additionalInstructions: parsed.data.additionalInstructions,
