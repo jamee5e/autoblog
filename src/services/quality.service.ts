@@ -350,9 +350,13 @@ export const reviseArticleFromQuality = async (input: {
       })
     ]);
 
+    const contentForLinkTracking = finalCta
+      ? `${sanitizedContent}<a href="${finalCta.url}">${finalCta.buttonText}</a>`
+      : sanitizedContent;
+
     const internalLinkCount = await recordArticleInternalLinks(
       article.id,
-      sanitizedContent,
+      contentForLinkTracking,
       allowedInternalLinks
     );
 
