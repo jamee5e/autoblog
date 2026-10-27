@@ -11,7 +11,14 @@ export const articleDraftSchema = z.object({
   title: z.string().trim().min(5).max(180),
   slug: z.string().trim().min(3).max(180),
   excerpt: z.string().trim().min(20).max(500),
-  content: z.string().trim().min(300)
+  content: z.string().trim().min(300),
+  finalCta: z.object({
+    enabled: z.boolean(),
+    heading: z.string().trim().max(180),
+    description: z.string().trim().max(500),
+    buttonText: z.string().trim().max(100),
+    url: z.string().trim().max(2000)
+  })
 });
 
 export type ArticleDraft = z.infer<typeof articleDraftSchema>;
@@ -23,9 +30,21 @@ const articleDraftResponseSchema = {
     title: { type: "string" },
     slug: { type: "string" },
     excerpt: { type: "string" },
-    content: { type: "string" }
+    content: { type: "string" },
+    finalCta: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        enabled: { type: "boolean" },
+        heading: { type: "string" },
+        description: { type: "string" },
+        buttonText: { type: "string" },
+        url: { type: "string" }
+      },
+      required: ["enabled", "heading", "description", "buttonText", "url"]
+    }
   },
-  required: ["title", "slug", "excerpt", "content"]
+  required: ["title", "slug", "excerpt", "content", "finalCta"]
 };
 
 const containsUnsafeHtml = (html: string): boolean =>
