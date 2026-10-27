@@ -188,6 +188,51 @@ export interface InternalLink {
   };
 }
 
+export interface ImageAsset {
+  id: string;
+  websiteId: string;
+  wordpressMediaId: number;
+  title: string;
+  sourceUrl: string;
+  altText: string | null;
+  caption: string | null;
+  description: string | null;
+  keywords: string[];
+  mimeType: string | null;
+  width: number | null;
+  height: number | null;
+  priority: number;
+  active: boolean;
+  useCount: number;
+  lastUsedAt: string | null;
+  lastSyncedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  website: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface ArticleImage {
+  id: string;
+  role: "FEATURED" | "INLINE";
+  sortOrder: number;
+  altText: string | null;
+  imageAsset: {
+    id: string;
+    wordpressMediaId: number;
+    title: string;
+    sourceUrl: string;
+    altText: string | null;
+    keywords: string[];
+    mimeType: string | null;
+    width: number | null;
+    height: number | null;
+    priority: number;
+  };
+}
+
 export interface ArticleCtaData {
   heading: string;
   description: string;
@@ -293,6 +338,7 @@ export interface ArticlePreview {
   publishedAt: string | null;
   createdAt: string;
   internalLinks: ArticleInternalLink[];
+  images: ArticleImage[];
 }
 
 export interface SystemLog {
