@@ -11,6 +11,12 @@ export interface WriterPromptInput {
     content: string;
   };
   revisionInstructions?: string[];
+  allowedInternalLinks?: Array<{
+    title: string;
+    url: string;
+    targetKeywords: string[];
+    anchorSuggestions: string[];
+  }>;
   language?: string;
   brandContext?: {
     tone?: string;
@@ -35,6 +41,7 @@ export const buildWriterPrompt = (input: WriterPromptInput): string => {
   const revisionInstructions = input.revisionInstructions?.length
     ? input.revisionInstructions
     : [];
+  const allowedInternalLinks = input.allowedInternalLinks ?? [];
 
   return [
     "You are the Writer Agent for a travel content publishing workflow.",
@@ -52,7 +59,12 @@ export const buildWriterPrompt = (input: WriterPromptInput): string => {
     "- Match the supplied brand tone and target audience when available.",
     "- Follow prohibited-term rules when provided.",
     "- Return article body HTML only inside the content field. Do not return a full HTML document.",
-    "- Allowed body structure should be simple editorial HTML such as h2, h3, p, ul, ol, li, strong, em, and blockquote.",
+    "- Allowed body structure should be simple editorial HTML such as h2, h3, p, ul, ol, li, strong, em, blockquote, and a.",
+    "- Use 2-4 internal links only when they are genuinely relevant to the surrounding sentence.",
+    "- Use only URLs from the Allowed internal links list below. Never invent, modify, shorten, or guess a URL.",
+    "- If no allowed internal link is relevant, do not force one.",
+    "- Use natural descriptive anchor text. Avoid generic anchors such as click here.",
+    "- Do not include external links unless they already exist inside the supplied current draft during a revision.",
     "- Do not include script, style, iframe, form, object, embed, or event-handler attributes.",
     "",
     "Website:",
@@ -74,6 +86,11 @@ export const buildWriterPrompt = (input: WriterPromptInput): string => {
     "",
     "Research brief:",
     JSON.stringify(input.researchData),
+    "",
+    "Allowed internal links:",
+    allowedInternalLinks.length > 0
+      ? JSON.stringify(allowedInternalLinks)
+      : "None available. Do not add internal links.",
     "",
     ...(isRevision
       ? [
