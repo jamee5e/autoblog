@@ -93,7 +93,6 @@ model Company {
   users         User[]
   websites      Website[]
   scheduledJobs ScheduledJob[]
-  topicFocuses   BlogTopicFocus[]
 
   @@map("companies")
 }
@@ -130,6 +129,7 @@ model Website {
   brandProfiles BrandProfile[]
   articles      Article[]
   scheduledJobs ScheduledJob[]
+  topicFocuses   BlogTopicFocus[]
 
   @@index([companyId])
   @@map("websites")
