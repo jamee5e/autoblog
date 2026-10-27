@@ -12,6 +12,11 @@ import { runWriterAgent } from "../ai/writer.agent";
 import { prisma } from "../config/database";
 import { HttpError } from "../errors/http.error";
 import { createSystemLog } from "./system-log.service";
+import {
+  getAllowedInternalLinksForArticle,
+  recordArticleInternalLinks,
+  sanitizeArticleInternalLinks
+} from "./internal-link.service";
 
 const MAX_REVISIONS = 2;
 
@@ -264,6 +269,12 @@ export const reviseArticleFromQuality = async (input: {
   });
 
   try {
+    const allowedInternalLinks = await getAllowedInternalLinksForArticle(
+      input.companyId,
+      article.id,
+      4
+    );
+
     const result = await runWriterAgent({
       websiteName: article.website.name,
       topic: article.topic,
@@ -277,6 +288,12 @@ export const reviseArticleFromQuality = async (input: {
         content: article.content
       },
       revisionInstructions: parsedReview.data.revisionInstructions,
+      allowedInternalLinks: allowedInternalLinks.map((link) => ({
+        title: link.pageTitle,
+        url: link.url,
+        targetKeywords: link.targetKeywords,
+        anchorSuggestions: link.anchorSuggestions
+      })),
       language: brandProfile?.language,
       brandContext: brandProfile
         ? {
@@ -291,6 +308,10 @@ export const reviseArticleFromQuality = async (input: {
     });
 
     const nextRevisionCount = article.revisionCount + 1;
+    const sanitizedContent = sanitizeArticleInternalLinks(
+      result.draft.content,
+      allowedInternalLinks
+    );
 
     await prisma.$transaction([
       prisma.article.update({
@@ -299,7 +320,7 @@ export const reviseArticleFromQuality = async (input: {
           title: result.draft.title,
           slug: result.draft.slug,
           excerpt: result.draft.excerpt,
-          content: result.draft.content,
+          content: sanitizedContent,
           qualityData: Prisma.DbNull,
           qualityScore: null,
           seoScore: null,
@@ -320,6 +341,12 @@ export const reviseArticleFromQuality = async (input: {
       })
     ]);
 
+    const internalLinkCount = await recordArticleInternalLinks(
+      article.id,
+      sanitizedContent,
+      allowedInternalLinks
+    );
+
     await createSystemLog({
       module: "gemini-writer",
       level: SystemLogLevel.INFO,
@@ -332,7 +359,8 @@ export const reviseArticleFromQuality = async (input: {
         maxRevisions: MAX_REVISIONS,
         inputTokens: result.usage.inputTokens,
         outputTokens: result.usage.outputTokens,
-        totalTokens: result.usage.totalTokens
+        totalTokens: result.usage.totalTokens,
+        internalLinkCount
       }
     });
 
@@ -341,7 +369,11 @@ export const reviseArticleFromQuality = async (input: {
       status: ArticleStatus.DRAFT,
       model: result.model,
       usage: result.usage,
-      draft: result.draft,
+      draft: {
+        ...result.draft,
+        content: sanitizedContent
+      },
+      internalLinkCount,
       revisionCount: nextRevisionCount,
       maxRevisions: MAX_REVISIONS
     };
