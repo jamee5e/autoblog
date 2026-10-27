@@ -1,3 +1,4 @@
+import { ContentFormat } from "@prisma/client";
 import { Request, Response } from "express";
 import { z } from "zod";
 import { HttpError } from "../errors/http.error";
@@ -23,6 +24,10 @@ const topicFocusBaseSchema = z.object({
   focusTopic: z.string().trim().min(2).max(300),
   keywords: z.array(z.string().trim().min(1).max(100)).max(50),
   angle: z.string().trim().max(1500).nullable().optional(),
+  contentFormat: z.nativeEnum(ContentFormat),
+  targetWordMin: z.number().int().min(400).max(2500),
+  targetWordMax: z.number().int().min(400).max(2500),
+  suggestedSections: z.number().int().min(3).max(20).nullable().optional(),
   priority: z.number().int().min(1).max(10),
   active: z.boolean(),
   startDate: dateOnlySchema,
@@ -32,6 +37,9 @@ const topicFocusBaseSchema = z.object({
 
 const topicFocusCreateSchema = topicFocusBaseSchema.extend({
   keywords: topicFocusBaseSchema.shape.keywords.default([]),
+  contentFormat: topicFocusBaseSchema.shape.contentFormat.default(ContentFormat.AUTO),
+  targetWordMin: topicFocusBaseSchema.shape.targetWordMin.default(700),
+  targetWordMax: topicFocusBaseSchema.shape.targetWordMax.default(1000),
   priority: topicFocusBaseSchema.shape.priority.default(5),
   active: topicFocusBaseSchema.shape.active.default(true)
 });
