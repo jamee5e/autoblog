@@ -12,6 +12,7 @@ import { systemLogRouter } from "./routes/system-log.routes";
 import { articleRouter } from "./routes/article.routes";
 import { scheduleRouter } from "./routes/schedule.routes";
 import { topicFocusRouter } from "./routes/topic-focus.routes";
+import { internalLinkRouter } from "./routes/internal-link.routes";
 
 export const app = express();
 
@@ -31,6 +32,7 @@ app.use("/api/system-logs", authenticateRequest, systemLogRouter);
 app.use("/api/articles", authenticateRequest, articleRouter);
 app.use("/api/schedules", authenticateRequest, scheduleRouter);
 app.use("/api/topic-focuses", authenticateRequest, topicFocusRouter);
+app.use("/api/internal-links", authenticateRequest, internalLinkRouter);
 
 app.get("/", (_req, res) => {
   res.redirect("/login");
