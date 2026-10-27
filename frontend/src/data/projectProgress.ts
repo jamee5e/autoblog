@@ -97,6 +97,8 @@ export const projectPhases: ProjectPhase[] = [
       { name: "WordPress Internal Link Sync", status: "complete" },
       { name: "Writer Internal Link Integration", status: "complete" },
       { name: "End-of-Blog Linked CTA", status: "complete" },
+      { name: "Travel Guide Content Formats", status: "complete" },
+      { name: "Topic Focus Writing Profiles", status: "complete" },
       { name: "Review & Publish Workflow", status: "complete" },
       { name: "WordPress Draft Workflow", status: "complete" },
       { name: "Admin Publish Guard", status: "complete" },
