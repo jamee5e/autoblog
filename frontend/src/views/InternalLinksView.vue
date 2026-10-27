@@ -473,107 +473,103 @@ onMounted(loadData);
           <span>กด Sync WordPress หรือเพิ่ม URL เองจากฟอร์มด้านซ้าย</span>
         </div>
 
-        <div v-else class="internal-link-list">
-          <article
-            v-for="link in filteredLinks"
-            :key="link.id"
-            class="internal-link-item"
-            :class="{ inactive: !link.active }"
-          >
-            <div class="internal-link-head">
-              <div>
-                <div class="topic-focus-title-row">
+        <div v-else class="table-wrap">
+          <table class="data-table internal-link-table">
+            <thead>
+              <tr>
+                <th>Active</th>
+                <th>Page / URL</th>
+                <th>Target Keywords</th>
+                <th>Type / Source</th>
+                <th>Priority</th>
+                <th>Used</th>
+                <th>Last Used</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="link in filteredLinks"
+                :key="link.id"
+                :class="{ 'row-inactive': !link.active }"
+              >
+                <td>
+                  <button
+                    class="table-toggle"
+                    type="button"
+                    :class="{ active: link.active }"
+                    :disabled="actionId === `toggle-${link.id}`"
+                    @click="toggleActive(link)"
+                  >
+                    {{ link.active ? "ON" : "OFF" }}
+                  </button>
+                </td>
+                <td class="internal-page-cell">
                   <strong>{{ link.pageTitle }}</strong>
-                  <span class="priority-chip">P{{ link.priority }}</span>
+                  <a
+                    :href="link.url"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="table-subtitle internal-link-url"
+                  >
+                    {{ link.url }}
+                  </a>
+                  <small v-if="link.anchorSuggestions.length" class="table-subtitle">
+                    Anchor: {{ link.anchorSuggestions.slice(0, 2).join(" · ") }}
+                  </small>
+                </td>
+                <td>
+                  <div v-if="link.targetKeywords.length" class="table-keywords">
+                    <span
+                      v-for="keyword in link.targetKeywords.slice(0, 4)"
+                      :key="keyword"
+                    >
+                      {{ keyword }}
+                    </span>
+                    <small v-if="link.targetKeywords.length > 4">
+                      +{{ link.targetKeywords.length - 4 }}
+                    </small>
+                  </div>
+                  <span v-else>—</span>
+                </td>
+                <td>
+                  <strong>{{ link.contentType || "—" }}</strong>
                   <span
-                    class="source-chip"
+                    class="source-chip table-source-chip"
                     :class="link.source.toLowerCase()"
                   >
                     {{ link.source }}
                   </span>
-                  <span
-                    class="schedule-status"
-                    :class="link.active ? 'completed' : 'cancelled'"
-                  >
-                    {{ link.active ? "ACTIVE" : "INACTIVE" }}
-                  </span>
-                </div>
-
-                <a
-                  :href="link.url"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="internal-link-url"
-                >
-                  {{ link.url }}
-                </a>
-              </div>
-
-              <div class="button-row">
-                <button
-                  class="secondary-button"
-                  type="button"
-                  @click="editLink(link)"
-                >
-                  Edit
-                </button>
-                <button
-                  class="outline-button"
-                  type="button"
-                  :disabled="actionId === `toggle-${link.id}`"
-                  @click="toggleActive(link)"
-                >
-                  {{ link.active ? "Pause" : "Activate" }}
-                </button>
-                <button
-                  v-if="auth.isAdmin"
-                  class="outline-button"
-                  type="button"
-                  :disabled="actionId === `delete-${link.id}`"
-                  @click="removeLink(link)"
-                >
-                  Delete
-                </button>
-              </div>
-            </div>
-
-            <div v-if="link.targetKeywords.length" class="keyword-chips">
-              <span
-                v-for="keyword in link.targetKeywords"
-                :key="keyword"
-              >
-                {{ keyword }}
-              </span>
-            </div>
-
-            <div
-              v-if="link.anchorSuggestions.length"
-              class="internal-anchor-block"
-            >
-              <span class="meta-label">ANCHOR SUGGESTIONS</span>
-              <p>{{ link.anchorSuggestions.join(" · ") }}</p>
-            </div>
-
-            <div class="internal-link-meta-grid">
-              <div>
-                <span class="meta-label">TYPE</span>
-                <strong>{{ link.contentType || "—" }}</strong>
-              </div>
-              <div>
-                <span class="meta-label">USED</span>
-                <strong>{{ link.useCount }} times</strong>
-              </div>
-              <div>
-                <span class="meta-label">LAST USED</span>
-                <strong>{{ formatDateTime(link.lastUsedAt) }}</strong>
-              </div>
-              <div>
-                <span class="meta-label">LAST SYNC</span>
-                <strong>{{ formatDateTime(link.lastSyncedAt) }}</strong>
-              </div>
-            </div>
-          </article>
-        </div>
+                  <small v-if="link.lastSyncedAt" class="table-subtitle">
+                    Sync {{ formatDateTime(link.lastSyncedAt) }}
+                  </small>
+                </td>
+                <td><span class="priority-chip">P{{ link.priority }}</span></td>
+                <td>{{ link.useCount }}</td>
+                <td>{{ formatDateTime(link.lastUsedAt) }}</td>
+                <td>
+                  <div class="table-actions">
+                    <button
+                      class="secondary-button"
+                      type="button"
+                      @click="editLink(link)"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      v-if="auth.isAdmin"
+                      class="outline-button"
+                      type="button"
+                      :disabled="actionId === `delete-${link.id}`"
+                      @click="removeLink(link)"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
       </article>
     </section>
   </AppLayout>
