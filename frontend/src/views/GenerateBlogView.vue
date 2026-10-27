@@ -522,7 +522,7 @@ onBeforeUnmount(() => {
                   :key="focus.id"
                   :value="focus.id"
                 >
-                  {{ focus.title }} · P{{ focus.priority }}
+                  {{ focus.title }} · {{ formatLabel(focus.contentFormat) }} · P{{ focus.priority }}
                 </option>
               </select>
               <small>
@@ -604,6 +604,7 @@ onBeforeUnmount(() => {
                 <strong>{{ eligibleFocusesToday.length }} eligible focus today</strong>
                 <p>
                   ระบบจะเลือก Campaign ที่เหมาะสมที่สุดจาก Priority และประวัติการใช้งาน
+                  แล้วใช้ Writing Profile ของ Focus นั้นอัตโนมัติ
                 </p>
               </div>
               <RouterLink class="secondary-button" to="/topic-focuses">
