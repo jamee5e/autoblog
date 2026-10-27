@@ -143,7 +143,7 @@ export const buildWriterPrompt = (input: WriterPromptInput): string => {
     `- Selected format: ${contentFormat}`,
     ...formatRules,
     "",
-    "Website:"
+    "Website:",
     `- Name: ${input.websiteName}`,
     `- Output language: ${language}`,
     "",
