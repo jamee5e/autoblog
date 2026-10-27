@@ -80,6 +80,10 @@ export const createArticleResearch = async (input: CreateResearchInput) => {
       topic: input.topic,
       primaryKeyword: input.primaryKeyword,
       additionalInstructions: input.additionalInstructions,
+      contentFormat: input.contentFormat,
+      targetWordMin: input.targetWordMin,
+      targetWordMax: input.targetWordMax,
+      suggestedSections: input.suggestedSections,
       language: brandProfile?.language,
       brandContext: brandProfile
         ? {
