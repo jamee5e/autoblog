@@ -170,7 +170,11 @@ export const orchestrateArticleFromTopicFocus = async (
     websiteId: input.websiteId,
     topic: brief.topic,
     primaryKeyword: brief.primaryKeyword,
-    additionalInstructions: brief.additionalInstructions
+    additionalInstructions: brief.additionalInstructions,
+    contentFormat: brief.contentFormat,
+    targetWordMin: brief.targetWordMin,
+    targetWordMax: brief.targetWordMax,
+    suggestedSections: brief.suggestedSections
   });
 
   await markTopicFocusUsed(focus.id);
@@ -194,7 +198,11 @@ export const orchestrateArticleFromTopicFocus = async (
       id: focus.id,
       title: focus.title,
       focusTopic: focus.focusTopic,
-      priority: focus.priority
+      priority: focus.priority,
+      contentFormat: focus.contentFormat,
+      targetWordMin: focus.targetWordMin,
+      targetWordMax: focus.targetWordMax,
+      suggestedSections: focus.suggestedSections
     }
   };
 };
