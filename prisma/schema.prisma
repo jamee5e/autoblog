@@ -104,6 +104,11 @@ enum ContentFormat {
   PLANNING_GUIDE
 }
 
+enum ArticleImageRole {
+  FEATURED
+  INLINE
+}
+
 model Company {
   id        String    @id @default(cuid())
   name      String
@@ -150,6 +155,7 @@ model Website {
   scheduledJobs ScheduledJob[]
   topicFocuses   BlogTopicFocus[]
   internalLinks  InternalLink[]
+  imageAssets     ImageAsset[]
 
   @@index([companyId])
   @@map("websites")
@@ -208,6 +214,7 @@ model Article {
   notifications Notification[]
   scheduledJob  ScheduledJob?
   internalLinks ArticleInternalLink[]
+  images        ArticleImage[]
 
   @@index([websiteId])
   @@index([status])
@@ -375,4 +382,52 @@ model ArticleInternalLink {
   @@index([articleId])
   @@index([internalLinkId])
   @@map("article_internal_links")
+}
+
+
+model ImageAsset {
+  id                String   @id @default(cuid())
+  websiteId         String   @map("website_id")
+  wordpressMediaId  Int      @map("wordpress_media_id")
+  title             String
+  sourceUrl         String   @map("source_url")
+  altText           String?  @map("alt_text")
+  caption           String?
+  description       String?
+  keywords          String[] @default([])
+  mimeType          String?  @map("mime_type")
+  width             Int?
+  height            Int?
+  priority          Int      @default(5)
+  active            Boolean  @default(true)
+  useCount          Int      @default(0) @map("use_count")
+  lastUsedAt        DateTime? @map("last_used_at")
+  lastSyncedAt      DateTime? @map("last_synced_at")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  website       Website        @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  articleImages ArticleImage[]
+
+  @@unique([websiteId, wordpressMediaId])
+  @@index([websiteId])
+  @@index([active])
+  @@map("image_assets")
+}
+
+model ArticleImage {
+  id           String           @id @default(cuid())
+  articleId    String           @map("article_id")
+  imageAssetId String           @map("image_asset_id")
+  role         ArticleImageRole
+  sortOrder    Int              @default(0) @map("sort_order")
+  altText      String?          @map("alt_text")
+  createdAt    DateTime         @default(now()) @map("created_at")
+
+  article    Article    @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  imageAsset ImageAsset @relation(fields: [imageAssetId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, imageAssetId])
+  @@index([articleId, role, sortOrder])
+  @@map("article_images")
 }
