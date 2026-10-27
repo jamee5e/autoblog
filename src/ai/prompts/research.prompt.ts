@@ -4,6 +4,10 @@ export interface ResearchPromptInput {
   topic: string;
   primaryKeyword: string;
   additionalInstructions?: string;
+  contentFormat?: "AUTO" | "LIST_GUIDE" | "DESTINATION_GUIDE" | "COMPARISON" | "PLANNING_GUIDE";
+  targetWordMin?: number;
+  targetWordMax?: number;
+  suggestedSections?: number | null;
   language?: string;
   brandContext?: {
     tone?: string;
@@ -35,6 +39,11 @@ export const buildResearchPrompt = (input: ResearchPromptInput): string => {
     "- Separate factual research from writing recommendations.",
     "- Avoid promotional exaggeration and unsupported superlatives.",
     "- Keep recommendations specific enough for a writer to build a useful article.",
+    "- Shape the recommended sections to the selected content format instead of returning the same generic article outline every time.",
+    "- For LIST_GUIDE, recommend distinct list items that can become numbered H2 sections.",
+    "- For DESTINATION_GUIDE, recommend useful destination/area sections plus decision help when appropriate.",
+    "- For COMPARISON, organize research around meaningful differences and traveler fit.",
+    "- For PLANNING_GUIDE, organize research in a practical planning sequence.",
     "",
     "Website:",
     `- Name: ${input.websiteName}`,
@@ -44,6 +53,9 @@ export const buildResearchPrompt = (input: ResearchPromptInput): string => {
     "Content brief:",
     `- Topic: ${input.topic}`,
     `- Primary keyword: ${input.primaryKeyword}`,
+    `- Content format: ${input.contentFormat ?? "AUTO"}`,
+    `- Target length: ${input.targetWordMin ?? 700}-${input.targetWordMax ?? 1000} words`,
+    `- Suggested main sections: ${input.suggestedSections ?? "Flexible"}`,
     `- Additional instructions: ${instructions}`,
     "",
     "Brand context:",
