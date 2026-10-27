@@ -174,9 +174,11 @@ export const updateInternalLink = async (
   }
 
   const url =
-    input.url === undefined
-      ? undefined
-      : normalizeInternalUrl(input.url, websiteUrl);
+    input.url !== undefined
+      ? normalizeInternalUrl(input.url, websiteUrl)
+      : input.websiteId && input.websiteId !== existing.websiteId
+        ? normalizeInternalUrl(existing.url, websiteUrl)
+        : undefined;
 
   if (url) {
     const duplicate = await prisma.internalLink.findFirst({
