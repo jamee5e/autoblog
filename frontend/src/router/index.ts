@@ -8,6 +8,7 @@ import ArticlePreviewView from "@/views/ArticlePreviewView.vue";
 import ProjectProgressView from "@/views/ProjectProgressView.vue";
 import SystemLogsView from "@/views/SystemLogsView.vue";
 import GenerateBlogView from "@/views/GenerateBlogView.vue";
+import TopicFocusesView from "@/views/TopicFocusesView.vue";
 import SettingsView from "@/views/SettingsView.vue";
 
 const router = createRouter({
@@ -17,6 +18,7 @@ const router = createRouter({
     { path: "/login", name: "login", component: LoginView, meta: { public: true } },
     { path: "/dashboard", name: "dashboard", component: DashboardView },
     { path: "/generate", name: "generate", component: GenerateBlogView },
+    { path: "/topic-focuses", name: "topic-focuses", component: TopicFocusesView },
     { path: "/articles", name: "articles", component: ArticlesView },
     { path: "/articles/:id", name: "article-preview", component: ArticlePreviewView },
     { path: "/websites", name: "websites", component: WebsitesView },
