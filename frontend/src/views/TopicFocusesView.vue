@@ -3,7 +3,7 @@ import { computed, onMounted, reactive, ref } from "vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import { api, getApiErrorMessage } from "@/services/api";
 import { useAuthStore } from "@/stores/auth";
-import type { BlogTopicFocus, Website } from "@/types";
+import type { BlogTopicFocus, ContentFormat, Website } from "@/types";
 
 const auth = useAuthStore();
 const websites = ref<Website[]>([]);
@@ -14,12 +14,51 @@ const actionId = ref<string | null>(null);
 const editingId = ref<string | null>(null);
 const message = ref<{ type: "success" | "danger"; text: string } | null>(null);
 
+const contentFormatOptions: Array<{
+  value: ContentFormat;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "AUTO",
+    label: "Auto",
+    description: "ให้ AI เลือกโครงสร้างที่เหมาะกับ search intent"
+  },
+  {
+    value: "LIST_GUIDE",
+    label: "List Guide",
+    description: "เหมาะกับ Best, Top, Things to do และบทความแบบลิสต์"
+  },
+  {
+    value: "DESTINATION_GUIDE",
+    label: "Destination Guide",
+    description: "เหมาะกับสถานที่ เกาะ ชายหาด และพื้นที่ท่องเที่ยว"
+  },
+  {
+    value: "COMPARISON",
+    label: "Comparison",
+    description: "เหมาะกับ X vs Y หรือบทความช่วยเปรียบเทียบตัวเลือก"
+  },
+  {
+    value: "PLANNING_GUIDE",
+    label: "Planning Guide",
+    description: "เหมาะกับ itinerary, how-to และการวางแผนทริป"
+  }
+];
+
+const formatLabel = (format: ContentFormat) =>
+  contentFormatOptions.find((item) => item.value === format)?.label || format;
+
 const form = reactive({
   websiteId: "",
   title: "",
   focusTopic: "",
   keywordsText: "",
   angle: "",
+  contentFormat: "AUTO" as ContentFormat,
+  targetWordMin: 700,
+  targetWordMax: 1000,
+  suggestedSections: 8,
   priority: 5,
   active: true,
   startDate: "",
@@ -54,6 +93,10 @@ const resetForm = () => {
     focusTopic: "",
     keywordsText: "",
     angle: "",
+    contentFormat: "AUTO" as ContentFormat,
+    targetWordMin: 700,
+    targetWordMax: 1000,
+    suggestedSections: 8,
     priority: 5,
     active: true,
     startDate: "",
@@ -94,6 +137,10 @@ const editFocus = (focus: BlogTopicFocus) => {
     focusTopic: focus.focusTopic,
     keywordsText: focus.keywords.join(", "),
     angle: focus.angle || "",
+    contentFormat: focus.contentFormat,
+    targetWordMin: focus.targetWordMin,
+    targetWordMax: focus.targetWordMax,
+    suggestedSections: focus.suggestedSections ?? 8,
     priority: focus.priority,
     active: focus.active,
     startDate: normalizeDateOnly(focus.startDate),
@@ -116,6 +163,14 @@ const saveFocus = async () => {
     return;
   }
 
+  if (form.targetWordMin > form.targetWordMax) {
+    message.value = {
+      type: "danger",
+      text: "Minimum word target must be less than or equal to maximum."
+    };
+    return;
+  }
+
   if (form.startDate && form.endDate && form.startDate > form.endDate) {
     message.value = {
       type: "danger",
@@ -132,6 +187,12 @@ const saveFocus = async () => {
     focusTopic: form.focusTopic.trim(),
     keywords,
     angle: form.angle.trim() || null,
+    contentFormat: form.contentFormat,
+    targetWordMin: Number(form.targetWordMin),
+    targetWordMax: Number(form.targetWordMax),
+    suggestedSections: form.suggestedSections
+      ? Number(form.suggestedSections)
+      : null,
     priority: Number(form.priority),
     active: form.active,
     startDate: form.startDate || null,
@@ -297,6 +358,60 @@ onMounted(loadData);
             ></textarea>
           </label>
 
+          <label>
+            Content Format
+            <select v-model="form.contentFormat">
+              <option
+                v-for="option in contentFormatOptions"
+                :key="option.value"
+                :value="option.value"
+              >
+                {{ option.label }}
+              </option>
+            </select>
+            <small>
+              {{
+                contentFormatOptions.find((item) => item.value === form.contentFormat)?.description
+              }}
+            </small>
+          </label>
+
+          <div class="topic-focus-writing-grid">
+            <label>
+              Target Words Min
+              <input
+                v-model.number="form.targetWordMin"
+                type="number"
+                min="400"
+                max="2500"
+                step="50"
+                required
+              />
+            </label>
+
+            <label>
+              Target Words Max
+              <input
+                v-model.number="form.targetWordMax"
+                type="number"
+                min="400"
+                max="2500"
+                step="50"
+                required
+              />
+            </label>
+
+            <label>
+              Suggested Sections
+              <input
+                v-model.number="form.suggestedSections"
+                type="number"
+                min="3"
+                max="20"
+              />
+            </label>
+          </div>
+
           <div class="topic-focus-two-col">
             <label>
               Priority (1–10)
@@ -384,6 +499,7 @@ onMounted(loadData);
                 <div class="topic-focus-title-row">
                   <strong>{{ focus.title }}</strong>
                   <span class="priority-chip">P{{ focus.priority }}</span>
+                  <span class="content-format-chip">{{ formatLabel(focus.contentFormat) }}</span>
                   <span
                     class="schedule-status"
                     :class="focus.active ? 'completed' : 'cancelled'"
@@ -436,6 +552,21 @@ onMounted(loadData);
             <div v-if="focus.angle" class="topic-focus-block">
               <span class="meta-label">ANGLE</span>
               <p>{{ focus.angle }}</p>
+            </div>
+
+            <div class="topic-focus-writing-summary">
+              <div>
+                <span class="meta-label">FORMAT</span>
+                <strong>{{ formatLabel(focus.contentFormat) }}</strong>
+              </div>
+              <div>
+                <span class="meta-label">TARGET LENGTH</span>
+                <strong>{{ focus.targetWordMin }}–{{ focus.targetWordMax }} words</strong>
+              </div>
+              <div>
+                <span class="meta-label">SECTIONS</span>
+                <strong>{{ focus.suggestedSections || "Flexible" }}</strong>
+              </div>
             </div>
 
             <div class="topic-focus-meta-grid">
