@@ -79,7 +79,7 @@ const toWordPressArticleInput = (article: {
     content: appendArticleCta(contentWithImages, article.ctaData),
     excerpt: article.excerpt ?? undefined,
     slug: article.slug ?? undefined,
-    featuredMediaId: getFeaturedWordPressMediaId(article.images)
+    featuredMediaId: getFeaturedWordPressMediaId(article.images) ?? 0
   };
 };
 
