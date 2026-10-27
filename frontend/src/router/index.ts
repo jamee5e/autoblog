@@ -10,6 +10,7 @@ import SystemLogsView from "@/views/SystemLogsView.vue";
 import GenerateBlogView from "@/views/GenerateBlogView.vue";
 import TopicFocusesView from "@/views/TopicFocusesView.vue";
 import InternalLinksView from "@/views/InternalLinksView.vue";
+import ImageLibraryView from "@/views/ImageLibraryView.vue";
 import SettingsView from "@/views/SettingsView.vue";
 
 const router = createRouter({
@@ -21,6 +22,7 @@ const router = createRouter({
     { path: "/generate", name: "generate", component: GenerateBlogView },
     { path: "/topic-focuses", name: "topic-focuses", component: TopicFocusesView },
     { path: "/internal-links", name: "internal-links", component: InternalLinksView },
+    { path: "/images", name: "images", component: ImageLibraryView },
     { path: "/articles", name: "articles", component: ArticlesView },
     { path: "/articles/:id", name: "article-preview", component: ArticlePreviewView },
     { path: "/websites", name: "websites", component: WebsitesView },
