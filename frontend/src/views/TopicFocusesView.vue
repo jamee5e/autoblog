@@ -27,12 +27,12 @@ const contentFormatOptions: Array<{
   {
     value: "LIST_GUIDE",
     label: "List Guide",
-    description: "เหมาะกับ Best, Top, Things to do และบทความแบบลิสต์"
+    description: "แนว Best 10 Activities: Best, Top, Things to do และบทความแบบลิสต์"
   },
   {
     value: "DESTINATION_GUIDE",
     label: "Destination Guide",
-    description: "เหมาะกับสถานที่ เกาะ ชายหาด และพื้นที่ท่องเที่ยว"
+    description: "แนว Phuket Popular Destination: แยกสถานที่ เกาะ ชายหาด หรือพื้นที่เป็นแต่ละ H2"
   },
   {
     value: "COMPARISON",
