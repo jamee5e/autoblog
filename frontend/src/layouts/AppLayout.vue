@@ -34,9 +34,13 @@ const logout = async () => {
 
       <nav class="app-nav">
         <RouterLink to="/dashboard">Dashboard</RouterLink>
+
+        <span class="nav-section-label">Content</span>
         <RouterLink to="/generate">Generate Blog</RouterLink>
         <RouterLink to="/topic-focuses">Blog Topic Focus</RouterLink>
         <RouterLink to="/articles">Articles</RouterLink>
+
+        <span class="nav-section-label">Platform</span>
         <RouterLink to="/websites">Websites</RouterLink>
         <RouterLink to="/project-progress">Project Progress</RouterLink>
         <RouterLink v-if="auth.isAdmin" to="/system-logs">System Logs</RouterLink>
