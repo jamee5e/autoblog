@@ -82,6 +82,12 @@ export interface OrchestrationResponse {
   decision: QualityDecision;
   revisionCount: number;
   maxRevisions: number;
+  topicFocus?: {
+    id: string;
+    title: string;
+    focusTopic: string;
+    priority: number;
+  };
   research: {
     model: string;
     usage: ResearchUsage;
@@ -108,11 +114,18 @@ export type ScheduledJobAction =
   | "GENERATE_ONLY"
   | "GENERATE_AND_DRAFT";
 
+export type ScheduledContentSource =
+  | "MANUAL"
+  | "TOPIC_FOCUS_AUTO"
+  | "TOPIC_FOCUS_SELECTED";
+
 export interface ScheduledJob {
   id: string;
   websiteId: string;
-  topic: string;
-  primaryKeyword: string;
+  contentSource: ScheduledContentSource;
+  topicFocusId: string | null;
+  topic: string | null;
+  primaryKeyword: string | null;
   additionalInstructions: string | null;
   scheduledAt: string;
   timezone: string;
@@ -125,6 +138,12 @@ export interface ScheduledJob {
   website: {
     name: string;
   };
+  topicFocus: {
+    id: string;
+    title: string;
+    focusTopic: string;
+    priority: number;
+  } | null;
   article: {
     id: string;
     status: string;
