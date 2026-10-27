@@ -1,4 +1,4 @@
-import { BlogTopicFocus } from "@prisma/client";
+import { BlogTopicFocus, ContentFormat } from "@prisma/client";
 import { prisma } from "../config/database";
 import { HttpError } from "../errors/http.error";
 
@@ -8,6 +8,10 @@ export interface TopicFocusInput {
   focusTopic: string;
   keywords: string[];
   angle?: string | null;
+  contentFormat: ContentFormat;
+  targetWordMin: number;
+  targetWordMax: number;
+  suggestedSections?: number | null;
   priority: number;
   active: boolean;
   startDate?: Date | null;
@@ -36,6 +40,28 @@ const getAuthorizedWebsite = async (companyId: string, websiteId: string) => {
 const validateDateRange = (startDate?: Date | null, endDate?: Date | null) => {
   if (startDate && endDate && startDate.getTime() > endDate.getTime()) {
     throw new HttpError(400, "Start date must be before or equal to end date");
+  }
+};
+
+const validateWritingProfile = (
+  targetWordMin: number,
+  targetWordMax: number,
+  suggestedSections?: number | null
+) => {
+  if (targetWordMin > targetWordMax) {
+    throw new HttpError(400, "Minimum word target must be less than or equal to maximum");
+  }
+
+  if (targetWordMin < 400 || targetWordMax > 2500) {
+    throw new HttpError(400, "Word target must stay between 400 and 2500 words");
+  }
+
+  if (
+    suggestedSections !== undefined &&
+    suggestedSections !== null &&
+    (suggestedSections < 3 || suggestedSections > 20)
+  ) {
+    throw new HttpError(400, "Suggested sections must be between 3 and 20");
   }
 };
 
@@ -71,6 +97,11 @@ export const createTopicFocus = async (
 ) => {
   await getAuthorizedWebsite(companyId, input.websiteId);
   validateDateRange(input.startDate, input.endDate);
+  validateWritingProfile(
+    input.targetWordMin,
+    input.targetWordMax,
+    input.suggestedSections
+  );
 
   return prisma.blogTopicFocus.create({
     data: {
@@ -79,6 +110,10 @@ export const createTopicFocus = async (
       focusTopic: input.focusTopic,
       keywords: input.keywords,
       angle: input.angle || null,
+      contentFormat: input.contentFormat,
+      targetWordMin: input.targetWordMin,
+      targetWordMax: input.targetWordMax,
+      suggestedSections: input.suggestedSections ?? null,
       priority: input.priority,
       active: input.active,
       startDate: input.startDate || null,
@@ -125,6 +160,21 @@ export const updateTopicFocus = async (
 
   validateDateRange(nextStartDate, nextEndDate);
 
+  const nextTargetWordMin =
+    input.targetWordMin === undefined ? existing.targetWordMin : input.targetWordMin;
+  const nextTargetWordMax =
+    input.targetWordMax === undefined ? existing.targetWordMax : input.targetWordMax;
+  const nextSuggestedSections =
+    input.suggestedSections === undefined
+      ? existing.suggestedSections
+      : input.suggestedSections;
+
+  validateWritingProfile(
+    nextTargetWordMin,
+    nextTargetWordMax,
+    nextSuggestedSections
+  );
+
   return prisma.blogTopicFocus.update({
     where: { id: existing.id },
     data: {
@@ -133,6 +183,13 @@ export const updateTopicFocus = async (
       focusTopic: input.focusTopic,
       keywords: input.keywords,
       angle: input.angle === undefined ? undefined : input.angle || null,
+      contentFormat: input.contentFormat,
+      targetWordMin: input.targetWordMin,
+      targetWordMax: input.targetWordMax,
+      suggestedSections:
+        input.suggestedSections === undefined
+          ? undefined
+          : input.suggestedSections ?? null,
       priority: input.priority,
       active: input.active,
       startDate: input.startDate === undefined ? undefined : input.startDate,
@@ -313,6 +370,11 @@ export const buildResearchInputFromTopicFocus = (focus: BlogTopicFocus) => {
     `Focus topic: ${focus.focusTopic}`,
     keywordList.length > 0 ? `Keywords to cover naturally: ${keywordList.join(", ")}` : "",
     focus.angle ? `Content angle: ${focus.angle}` : "",
+    `Preferred content format: ${focus.contentFormat}`,
+    `Target length: ${focus.targetWordMin}-${focus.targetWordMax} words`,
+    focus.suggestedSections
+      ? `Suggested main sections: ${focus.suggestedSections}`
+      : "",
     focus.notes ? `Campaign notes / restrictions: ${focus.notes}` : "",
     "Create a useful, distinct article within this focus. Do not simply repeat the campaign title as the final article title."
   ].filter(Boolean);
@@ -320,6 +382,10 @@ export const buildResearchInputFromTopicFocus = (focus: BlogTopicFocus) => {
   return {
     topic: focus.focusTopic,
     primaryKeyword,
-    additionalInstructions: instructionParts.join("\n\n")
+    additionalInstructions: instructionParts.join("\n\n"),
+    contentFormat: focus.contentFormat,
+    targetWordMin: focus.targetWordMin,
+    targetWordMax: focus.targetWordMax,
+    suggestedSections: focus.suggestedSections
   };
 };
