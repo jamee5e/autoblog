@@ -271,6 +271,9 @@ export const syncInternalLinksFromWordPress = async (
 
   for (const item of content) {
     const url = normalizeInternalUrl(item.url, website.wordpressUrl);
+    const cleanTitle = cleanWordPressTitle(item.title);
+    const slugKeyword = item.slug.replace(/[-_]+/g, " ").trim();
+    const starterKeywords = [...new Set([cleanTitle, slugKeyword].filter(Boolean))];
     const current = existingByUrl.get(url);
 
     if (current) {
@@ -281,8 +284,14 @@ export const syncInternalLinksFromWordPress = async (
         data: {
           ...(current.source === InternalLinkSource.WORDPRESS
             ? {
-                pageTitle: cleanWordPressTitle(item.title),
-                contentType: item.type === "post" ? "Post" : "Page"
+                pageTitle: cleanTitle,
+                contentType: item.type === "post" ? "Post" : "Page",
+                ...(current.targetKeywords.length === 0
+                  ? { targetKeywords: starterKeywords }
+                  : {}),
+                ...(current.anchorSuggestions.length === 0
+                  ? { anchorSuggestions: [cleanTitle] }
+                  : {})
               }
             : {}),
           wordpressObjectId: item.id,
@@ -297,10 +306,10 @@ export const syncInternalLinksFromWordPress = async (
     await prisma.internalLink.create({
       data: {
         websiteId: website.id,
-        pageTitle: cleanWordPressTitle(item.title),
+        pageTitle: cleanTitle,
         url,
-        targetKeywords: [],
-        anchorSuggestions: [],
+        targetKeywords: starterKeywords,
+        anchorSuggestions: [cleanTitle],
         contentType: item.type === "post" ? "Post" : "Page",
         priority: 5,
         active: true,
