@@ -177,6 +177,14 @@ export interface InternalLink {
   };
 }
 
+export interface ArticleCtaData {
+  heading: string;
+  description: string;
+  buttonText: string;
+  url: string;
+  internalLinkId: string;
+}
+
 export interface ArticleInternalLink {
   id: string;
   anchorText: string | null;
@@ -257,6 +265,7 @@ export interface ArticlePreview {
   slug: string | null;
   excerpt: string | null;
   metaDescription: string | null;
+  ctaData: ArticleCtaData | null;
   seoScore: number | null;
   content: string | null;
   status: string;
