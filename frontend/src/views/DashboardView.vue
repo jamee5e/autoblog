@@ -3,13 +3,14 @@ import { computed, onMounted, ref } from "vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import StatusBadge from "@/components/StatusBadge.vue";
 import { api } from "@/services/api";
-import type { ArticleSummary, BlogTopicFocus, InternalLink, ScheduledJob, Website } from "@/types";
+import type { ArticleSummary, BlogTopicFocus, ImageAsset, InternalLink, ScheduledJob, Website } from "@/types";
 
 const websites = ref<Website[]>([]);
 const articles = ref<ArticleSummary[]>([]);
 const topicFocuses = ref<BlogTopicFocus[]>([]);
 const schedules = ref<ScheduledJob[]>([]);
 const internalLinks = ref<InternalLink[]>([]);
+const imageAssets = ref<ImageAsset[]>([]);
 const loading = ref(true);
 
 const publishedCount = computed(() => articles.value.filter((item) => item.status === "PUBLISHED").length);
@@ -22,21 +23,33 @@ const pendingScheduleCount = computed(() =>
 const activeInternalLinkCount = computed(() =>
   internalLinks.value.filter((item) => item.active).length
 );
+const activeImageCount = computed(() =>
+  imageAssets.value.filter((item) => item.active).length
+);
 
 onMounted(async () => {
   try {
-    const [websiteResponse, articleResponse, focusResponse, scheduleResponse, linkResponse] = await Promise.all([
+    const [
+      websiteResponse,
+      articleResponse,
+      focusResponse,
+      scheduleResponse,
+      linkResponse,
+      imageResponse
+    ] = await Promise.all([
       api.get("/websites"),
       api.get("/articles"),
       api.get("/topic-focuses"),
       api.get("/schedules"),
-      api.get("/internal-links")
+      api.get("/internal-links"),
+      api.get("/image-assets")
     ]);
     websites.value = websiteResponse.data.data;
     articles.value = articleResponse.data.data;
     topicFocuses.value = focusResponse.data.data;
     schedules.value = scheduleResponse.data.data;
     internalLinks.value = linkResponse.data.data;
+    imageAssets.value = imageResponse.data.data;
   } finally {
     loading.value = false;
   }
@@ -147,6 +160,30 @@ onMounted(async () => {
             <small>Across all connected websites</small>
           </div>
           <strong>{{ internalLinks.length }}</strong>
+        </div>
+      </article>
+
+      <article class="surface-card">
+        <div class="card-heading">
+          <div>
+            <p class="eyebrow">MEDIA ASSETS</p>
+            <h2>Images</h2>
+          </div>
+          <RouterLink to="/images">Manage</RouterLink>
+        </div>
+        <div class="automation-summary-row">
+          <div>
+            <strong>Active Images</strong>
+            <small>WordPress images available to article workflows</small>
+          </div>
+          <strong>{{ activeImageCount }}</strong>
+        </div>
+        <div class="automation-summary-row">
+          <div>
+            <strong>Total Images</strong>
+            <small>Synced from connected WordPress media libraries</small>
+          </div>
+          <strong>{{ imageAssets.length }}</strong>
         </div>
       </article>
     </section>
