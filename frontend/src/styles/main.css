@@ -2446,3 +2446,56 @@ details > summary {
 }
 
 /* Internal Link responsive override */
+
+
+.blog-final-cta {
+  margin: 38px auto 4px;
+  padding: 28px;
+  max-width: 100%;
+  border: 1px solid #d9e0e6;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.blog-final-cta h2 {
+  margin: 0 0 10px;
+  color: #111;
+  font-size: clamp(24px, 3vw, 34px);
+  line-height: 1.2;
+  letter-spacing: -.02em;
+}
+
+.blog-final-cta p {
+  margin: 0 0 22px;
+  color: #27312b;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.blog-final-cta-button {
+  display: inline-flex;
+  min-height: 48px;
+  padding: 0 22px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+  background: #f47b20;
+  color: #fff !important;
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none !important;
+}
+
+.blog-final-cta-button:hover {
+  filter: brightness(.96);
+}
+
+@media (max-width: 680px) {
+  .blog-final-cta {
+    padding: 20px;
+  }
+
+  .blog-final-cta-button {
+    width: 100%;
+  }
+}
