@@ -285,7 +285,7 @@ onMounted(loadData);
       <div>
         <p class="eyebrow">CONTENT STRATEGY</p>
         <h1>Blog Topic Focus</h1>
-        <p>กำหนด Campaign, Focus Topic, Keywords และช่วงวันที่ให้ AI ใช้สร้างบทความ</p>
+        <p>กำหนด Campaign, Focus Topic, Writing Format, Keywords และช่วงวันที่ให้ AI ใช้สร้างบทความ</p>
       </div>
       <span class="status-badge success">{{ topicFocuses.length }} Focus</span>
     </div>
