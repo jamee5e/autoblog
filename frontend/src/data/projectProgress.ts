@@ -91,6 +91,8 @@ export const projectPhases: ProjectPhase[] = [
       { name: "Scheduled Date & Time Automation", status: "complete" },
       { name: "Persistent Schedule Worker", status: "complete" },
       { name: "Blog Topic Focus Management", status: "complete" },
+      { name: "Topic Focus → Generate Blog Integration", status: "complete" },
+      { name: "Topic Focus → Scheduler Integration", status: "complete" },
       { name: "Review & Publish Workflow", status: "complete" },
       { name: "WordPress Draft Workflow", status: "complete" },
       { name: "Admin Publish Guard", status: "complete" },
