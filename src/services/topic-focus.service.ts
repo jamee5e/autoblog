@@ -206,22 +206,25 @@ export const selectTopicFocusForWebsite = async (
     return null;
   }
 
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
+  const selectionScore = (focus: BlogTopicFocus) => {
+    const daysSinceLastUse = focus.lastUsedAt
+      ? Math.min(30, Math.max(0, Math.floor((now.getTime() - focus.lastUsedAt.getTime()) / DAY_MS)))
+      : 30;
+
+    return (focus.priority * 10) + daysSinceLastUse - Math.min(20, focus.useCount * 2);
+  };
+
   candidates.sort((a, b) => {
-    if (a.priority !== b.priority) {
-      return b.priority - a.priority;
+    const scoreDifference = selectionScore(b) - selectionScore(a);
+
+    if (scoreDifference !== 0) {
+      return scoreDifference;
     }
 
     if (!a.lastUsedAt && b.lastUsedAt) return -1;
     if (a.lastUsedAt && !b.lastUsedAt) return 1;
-
-    if (a.lastUsedAt && b.lastUsedAt) {
-      const lastUsedDifference =
-        a.lastUsedAt.getTime() - b.lastUsedAt.getTime();
-
-      if (lastUsedDifference !== 0) {
-        return lastUsedDifference;
-      }
-    }
 
     return a.useCount - b.useCount;
   });
