@@ -4,6 +4,7 @@ import AppLayout from "@/layouts/AppLayout.vue";
 import { api, getApiErrorMessage } from "@/services/api";
 import type {
   BlogTopicFocus,
+  ContentFormat,
   OrchestrationResponse,
   ResearchResponse,
   ScheduledContentSource,
@@ -13,6 +14,18 @@ import type {
 } from "@/types";
 
 type ContentSourceMode = "TOPIC_FOCUS" | "MANUAL";
+
+const formatLabel = (format: ContentFormat) => {
+  const labels: Record<ContentFormat, string> = {
+    AUTO: "Auto",
+    LIST_GUIDE: "List Guide",
+    DESTINATION_GUIDE: "Destination Guide",
+    COMPARISON: "Comparison",
+    PLANNING_GUIDE: "Planning Guide"
+  };
+
+  return labels[format];
+};
 
 const websites = ref<Website[]>([]);
 const topicFocuses = ref<BlogTopicFocus[]>([]);
@@ -545,6 +558,23 @@ onBeforeUnmount(() => {
                 </div>
               </div>
 
+              <div class="focus-writing-preview">
+                <div>
+                  <span class="meta-label">FORMAT</span>
+                  <strong>{{ formatLabel(selectedTopicFocus.contentFormat) }}</strong>
+                </div>
+                <div>
+                  <span class="meta-label">TARGET LENGTH</span>
+                  <strong>
+                    {{ selectedTopicFocus.targetWordMin }}–{{ selectedTopicFocus.targetWordMax }} words
+                  </strong>
+                </div>
+                <div>
+                  <span class="meta-label">SECTIONS</span>
+                  <strong>{{ selectedTopicFocus.suggestedSections || "Flexible" }}</strong>
+                </div>
+              </div>
+
               <div v-if="selectedTopicFocus.keywords.length" class="keyword-chips">
                 <span
                   v-for="focusKeyword in selectedTopicFocus.keywords"
@@ -927,7 +957,11 @@ onBeforeUnmount(() => {
       >
         <span class="meta-label">TOPIC FOCUS USED</span>
         <strong>{{ orchestrationResult.topicFocus.title }}</strong>
-        <span>{{ orchestrationResult.topicFocus.focusTopic }}</span>
+        <span>
+          {{ orchestrationResult.topicFocus.focusTopic }}
+          · {{ formatLabel(orchestrationResult.topicFocus.contentFormat) }}
+          · {{ orchestrationResult.topicFocus.targetWordMin }}–{{ orchestrationResult.topicFocus.targetWordMax }} words
+        </span>
       </div>
     </section>
 
