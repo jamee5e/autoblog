@@ -268,12 +268,14 @@ export const syncInternalLinksFromWordPress = async (
   const now = new Date();
   let created = 0;
   let updated = 0;
+  const syncedUrls: string[] = [];
 
   for (const item of content) {
     const url = normalizeInternalUrl(item.url, website.wordpressUrl);
     const cleanTitle = cleanWordPressTitle(item.title);
     const slugKeyword = item.slug.replace(/[-_]+/g, " ").trim();
     const starterKeywords = [...new Set([cleanTitle, slugKeyword].filter(Boolean))];
+    syncedUrls.push(url);
     const current = existingByUrl.get(url);
 
     if (current) {
@@ -322,12 +324,32 @@ export const syncInternalLinksFromWordPress = async (
     created += 1;
   }
 
+  const deactivated = await prisma.internalLink.updateMany({
+    where: {
+      websiteId: website.id,
+      source: InternalLinkSource.WORDPRESS,
+      active: true,
+      ...(syncedUrls.length > 0
+        ? {
+            url: {
+              notIn: syncedUrls
+            }
+          }
+        : {})
+    },
+    data: {
+      active: false,
+      lastSyncedAt: now
+    }
+  });
+
   return {
     websiteId: website.id,
     websiteName: website.name,
     totalFromWordPress: content.length,
     created,
     updated,
+    deactivated: deactivated.count,
     syncedAt: now
   };
 };
