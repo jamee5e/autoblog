@@ -3,6 +3,7 @@ import {
   AIRunProvider,
   AIRunStatus,
   ArticleStatus,
+  Prisma,
   SystemLogLevel
 } from "@prisma/client";
 import { runWriterAgent } from "../ai/writer.agent";
@@ -10,6 +11,7 @@ import { getGeminiWriterModel } from "../ai/gemini.client";
 import { prisma } from "../config/database";
 import { HttpError } from "../errors/http.error";
 import { createSystemLog } from "./system-log.service";
+import { resolveArticleCta } from "./article-cta.service";
 import {
   getAllowedInternalLinksForArticle,
   recordArticleInternalLinks,
@@ -116,6 +118,10 @@ export const writeArticleDraft = async (input: WriteArticleInput) => {
       result.draft.content,
       allowedInternalLinks
     );
+    const finalCta = resolveArticleCta(
+      result.draft.finalCta,
+      allowedInternalLinks
+    );
 
     await prisma.$transaction([
       prisma.article.update({
@@ -125,6 +131,9 @@ export const writeArticleDraft = async (input: WriteArticleInput) => {
           slug: result.draft.slug,
           excerpt: result.draft.excerpt,
           content: sanitizedContent,
+          ctaData: finalCta
+            ? (JSON.parse(JSON.stringify(finalCta)) as Prisma.InputJsonValue)
+            : Prisma.DbNull,
           status: ArticleStatus.DRAFT
         }
       }),
@@ -157,7 +166,8 @@ export const writeArticleDraft = async (input: WriteArticleInput) => {
         inputTokens: result.usage.inputTokens,
         outputTokens: result.usage.outputTokens,
         totalTokens: result.usage.totalTokens,
-        internalLinkCount
+        internalLinkCount,
+        finalCtaUrl: finalCta?.url ?? null
       }
     });
 
@@ -170,6 +180,7 @@ export const writeArticleDraft = async (input: WriteArticleInput) => {
         ...result.draft,
         content: sanitizedContent
       },
+      finalCta,
       internalLinkCount
     };
   } catch (error) {
