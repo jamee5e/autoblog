@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { getGeminiClient, getGeminiModel } from "./gemini.client";
+import {
+  getGeminiClient,
+  getGeminiModel,
+  getGeminiResearchFallbackModel
+} from "./gemini.client";
 import { buildResearchPrompt, ResearchPromptInput } from "./prompts/research.prompt";
 import { HttpError } from "../errors/http.error";
 
@@ -103,34 +107,110 @@ export interface ResearchAgentResult {
   };
 }
 
+const RESEARCH_RETRY_DELAYS_MS = [1_000, 2_500];
+
+const sleep = (ms: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : JSON.stringify(error);
+
+const isDailyQuotaError = (error: unknown): boolean => {
+  const message = getErrorMessage(error);
+
+  return (
+    /requests per day/i.test(message) ||
+    /per day per model/i.test(message) ||
+    /daily.*quota/i.test(message)
+  );
+};
+
+const isTransientGeminiError = (error: unknown): boolean => {
+  const message = getErrorMessage(error);
+
+  return (
+    /"code"\s*:\s*(429|503)/i.test(message) ||
+    /\b(429|503)\b/.test(message) ||
+    /RESOURCE_EXHAUSTED|UNAVAILABLE|rate limit|high demand|temporarily overloaded/i.test(message)
+  );
+};
+
 export const runResearchAgent = async (
   input: ResearchPromptInput
 ): Promise<ResearchAgentResult> => {
   const client = await getGeminiClient();
-  const model = getGeminiModel();
+  const primaryModel = getGeminiModel();
+  const fallbackModel = getGeminiResearchFallbackModel();
+  const models = [...new Set([primaryModel, fallbackModel])];
   const prompt = buildResearchPrompt(input);
 
-  let interaction;
+  let interaction: Awaited<ReturnType<typeof client.interactions.create>> | undefined;
+  let usedModel = primaryModel;
+  let lastError: unknown;
 
-  try {
-    interaction = await client.interactions.create({
-      model,
-      input: prompt,
-      response_format: {
-        type: "text",
-        mime_type: "application/json",
-        schema: researchResponseSchema
-      },
-      generation_config: {
-        temperature: 0.2
+  for (const model of models) {
+    const maxAttempts = model === primaryModel ? 2 : 2;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      try {
+        interaction = await client.interactions.create({
+          model,
+          input: prompt,
+          response_format: {
+            type: "text",
+            mime_type: "application/json",
+            schema: researchResponseSchema
+          },
+          generation_config: {
+            temperature: 0.2
+          }
+        });
+
+        usedModel = model;
+        lastError = undefined;
+        break;
+      } catch (error) {
+        lastError = error;
+
+        if (isDailyQuotaError(error)) {
+          break;
+        }
+
+        if (!isTransientGeminiError(error)) {
+          throw new HttpError(502, "Gemini research request failed", {
+            provider: "GEMINI",
+            model,
+            errorMessage: getErrorMessage(error)
+          });
+        }
+
+        if (attempt < maxAttempts - 1) {
+          await sleep(
+            RESEARCH_RETRY_DELAYS_MS[
+              Math.min(attempt, RESEARCH_RETRY_DELAYS_MS.length - 1)
+            ]
+          );
+        }
       }
-    });
-  } catch (error) {
-    throw new HttpError(502, "Gemini research request failed", {
-      provider: "GEMINI",
-      model,
-      errorMessage: error instanceof Error ? error.message : "Unknown Gemini error"
-    });
+    }
+
+    if (interaction) break;
+  }
+
+  if (!interaction) {
+    const dailyQuotaExceeded = isDailyQuotaError(lastError);
+
+    throw new HttpError(
+      dailyQuotaExceeded ? 429 : 503,
+      dailyQuotaExceeded
+        ? "Gemini research daily quota exceeded for all configured models"
+        : "Gemini research is temporarily unavailable",
+      {
+        provider: "GEMINI",
+        attemptedModels: models,
+        errorMessage: getErrorMessage(lastError)
+      }
+    );
   }
 
   const responseText = interaction.output_text?.trim();
@@ -138,7 +218,7 @@ export const runResearchAgent = async (
   if (!responseText) {
     throw new HttpError(502, "Gemini returned an empty research response", {
       provider: "GEMINI",
-      model
+      model: usedModel
     });
   }
 
@@ -149,7 +229,7 @@ export const runResearchAgent = async (
   } catch {
     throw new HttpError(502, "Gemini returned invalid JSON", {
       provider: "GEMINI",
-      model
+      model: usedModel
     });
   }
 
@@ -158,14 +238,14 @@ export const runResearchAgent = async (
   if (!parsedResearch.success) {
     throw new HttpError(502, "Gemini research response did not match the required schema", {
       provider: "GEMINI",
-      model,
+      model: usedModel,
       validationErrors: parsedResearch.error.flatten()
     });
   }
 
   return {
     research: parsedResearch.data,
-    model,
+    model: usedModel,
     usage: {
       inputTokens: interaction.usage?.total_input_tokens ?? null,
       outputTokens: interaction.usage?.total_output_tokens ?? null,
