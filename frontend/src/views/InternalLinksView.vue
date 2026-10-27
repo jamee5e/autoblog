@@ -570,6 +570,7 @@ onMounted(loadData);
               </tr>
             </tbody>
           </table>
+        </div>
       </article>
     </section>
   </AppLayout>
