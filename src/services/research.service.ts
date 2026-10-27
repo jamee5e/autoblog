@@ -1,6 +1,7 @@
 import {
   AIAgentType,
   AIRunProvider,
+  ContentFormat,
   AIRunStatus,
   ArticleStatus,
   Prisma,
@@ -18,6 +19,10 @@ export interface CreateResearchInput {
   topic: string;
   primaryKeyword: string;
   additionalInstructions?: string;
+  contentFormat?: ContentFormat;
+  targetWordMin?: number;
+  targetWordMax?: number;
+  suggestedSections?: number | null;
 }
 
 const toJsonValue = (value: unknown): Prisma.InputJsonValue =>
@@ -50,6 +55,10 @@ export const createArticleResearch = async (input: CreateResearchInput) => {
       topic: input.topic,
       primaryKeyword: input.primaryKeyword,
       additionalInstructions: input.additionalInstructions || null,
+      contentFormat: input.contentFormat ?? ContentFormat.AUTO,
+      targetWordMin: input.targetWordMin ?? 700,
+      targetWordMax: input.targetWordMax ?? 1000,
+      suggestedSections: input.suggestedSections ?? null,
       status: ArticleStatus.RESEARCHING
     }
   });
