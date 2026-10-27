@@ -64,7 +64,7 @@ export const buildWriterPrompt = (input: WriterPromptInput): string => {
     "- Use only URLs from the Allowed internal links list below. Never invent, modify, shorten, or guess a URL.",
     "- If no allowed internal link is relevant, do not force one.",
     "- Use natural descriptive anchor text. Avoid generic anchors such as click here.",
-    "- Do not include external links unless they already exist inside the supplied current draft during a revision.",
+    "- Do not include external links. This workflow manages only approved internal links.",
     "- Do not include script, style, iframe, form, object, embed, or event-handler attributes.",
     "",
     "Website:",
