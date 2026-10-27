@@ -12,6 +12,7 @@ const envSchema = z.object({
   ENCRYPTION_KEY: z.string().min(32),
   GEMINI_API_KEY: z.string().optional(),
   GEMINI_MODEL: z.string().min(1).default("gemini-3.8-flash"),
+  GEMINI_RESEARCH_FALLBACK_MODEL: z.string().min(1).default("gemini-3.5-flash-lite"),
   GEMINI_WRITER_MODEL: z.string().min(1).optional(),
   GEMINI_WRITER_FALLBACK_MODEL: z.string().min(1).default("gemini-3.5-flash-lite"),
   GEMINI_QUALITY_MODEL: z.string().min(1).optional(),
