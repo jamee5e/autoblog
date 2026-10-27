@@ -395,7 +395,7 @@ onMounted(loadArticle);
         </div>
 
         <div v-if="!article.content" class="empty-inline">
-          Images will be selected after the Writer Agent creates the article.
+          Images will be selected automatically after the final SEO & Quality review passes.
         </div>
 
         <div v-else-if="article.images.length === 0" class="empty-inline">
@@ -438,7 +438,8 @@ onMounted(loadArticle);
             {{ article.images.length }} image(s) selected
           </strong>
           <span>
-            Featured Image จะถูกตั้งเป็น WordPress featured_media และ Inline Images
+            ระบบเลือกภาพจากบทความเวอร์ชันสุดท้ายหลัง Quality PASS
+            จากนั้น Featured Image จะถูกตั้งเป็น WordPress featured_media และ Inline Images
             จะถูกแทรกในเนื้อหาก่อนสร้างหรืออัปเดต WordPress Draft
           </span>
         </div>
