@@ -153,6 +153,42 @@ export interface ScheduledJob {
   } | null;
 }
 
+export interface InternalLink {
+  id: string;
+  websiteId: string;
+  pageTitle: string;
+  url: string;
+  targetKeywords: string[];
+  anchorSuggestions: string[];
+  contentType: string | null;
+  priority: number;
+  active: boolean;
+  source: "MANUAL" | "WORDPRESS";
+  wordpressObjectId: number | null;
+  wordpressObjectType: string | null;
+  useCount: number;
+  lastUsedAt: string | null;
+  lastSyncedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  website: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface ArticleInternalLink {
+  id: string;
+  anchorText: string | null;
+  internalLink: {
+    id: string;
+    pageTitle: string;
+    url: string;
+    contentType: string | null;
+    priority: number;
+  };
+}
+
 export interface BlogTopicFocus {
   id: string;
   websiteId: string;
@@ -228,6 +264,7 @@ export interface ArticlePreview {
   wordpressUrl: string | null;
   publishedAt: string | null;
   createdAt: string;
+  internalLinks: ArticleInternalLink[];
 }
 
 export interface SystemLog {
