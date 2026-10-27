@@ -231,10 +231,14 @@ const executeScheduledJob = async (scheduledJobId: string): Promise<void> => {
                 : undefined
           });
 
+    const resolvedTopicFocusId =
+      "topicFocus" in result ? result.topicFocus.id : job.topicFocusId;
+
     await prisma.scheduledJob.update({
       where: { id: job.id },
       data: {
-        articleId: result.articleId
+        articleId: result.articleId,
+        topicFocusId: resolvedTopicFocusId
       }
     });
 
