@@ -65,6 +65,12 @@ export const buildWriterPrompt = (input: WriterPromptInput): string => {
     "- If no allowed internal link is relevant, do not force one.",
     "- Use natural descriptive anchor text. Avoid generic anchors such as click here.",
     "- Do not include external links. This workflow manages only approved internal links.",
+    "- Do not place the final call-to-action box inside the content HTML. Return it separately in finalCta.",
+    "- When at least one Allowed internal link is genuinely relevant, set finalCta.enabled=true and choose exactly one URL from that list.",
+    "- The final CTA appears after the article body. Write a short helpful heading, one concise supporting sentence, and a clear button label.",
+    "- Never invent or modify the finalCta URL. Copy it exactly from the Allowed internal links list.",
+    "- Prefer a commercial or destination landing page that closely matches the article over the home or about page.",
+    "- If there is no relevant allowed link, set finalCta.enabled=false and return empty strings for heading, description, buttonText, and url.",
     "- Do not include script, style, iframe, form, object, embed, or event-handler attributes.",
     "",
     "Website:",
@@ -104,9 +110,10 @@ export const buildWriterPrompt = (input: WriterPromptInput): string => {
           "- Address every revision instruction that is relevant and supported by the research.",
           "- Do not introduce new unsupported facts while revising.",
           "- Preserve useful sections that do not need changes.",
+          "- Keep or improve the final CTA using the same approved-link rules. The CTA is separate from content HTML.",
           ""
         ]
       : []),
-    "Return only the requested structured article draft."
+    "Return only the requested structured article draft, including finalCta."
   ].join("\n");
 };
