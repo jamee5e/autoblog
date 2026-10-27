@@ -34,7 +34,7 @@ const createScheduleSchema = z.object({
     (!value.topic || !value.primaryKeyword)
   ) {
     context.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: "custom",
       message: "Manual schedules require topic and primary keyword"
     });
   }
@@ -44,7 +44,7 @@ const createScheduleSchema = z.object({
     !value.topicFocusId
   ) {
     context.addIssue({
-      code: z.ZodIssueCode.custom,
+      code: "custom",
       message: "Selected Topic Focus schedules require topicFocusId"
     });
   }
