@@ -96,6 +96,8 @@ export const projectPhases: ProjectPhase[] = [
       { name: "Internal Link Library", status: "complete" },
       { name: "WordPress Internal Link Sync", status: "complete" },
       { name: "Writer Internal Link Integration", status: "complete" },
+      { name: "WordPress Image Library", status: "complete" },
+      { name: "Automatic Featured & Inline Images", status: "complete" },
       { name: "End-of-Blog Linked CTA", status: "complete" },
       { name: "Travel Guide Content Formats", status: "complete" },
       { name: "Topic Focus Writing Profiles", status: "complete" },
