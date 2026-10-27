@@ -99,6 +99,51 @@ const requestWordPress = async <T>(params: {
   return (await response.json()) as T;
 };
 
+const requestWordPressCollection = async <T>(params: {
+  websiteId: string;
+  endpoint: string;
+}): Promise<{ data: T; totalPages: number }> => {
+  const credentials = await getWebsiteWordPressCredentials(params.websiteId);
+  const authHeader = buildAuthHeader(
+    credentials.username,
+    credentials.applicationPassword
+  );
+  const url = `${credentials.apiBaseUrl}${params.endpoint}`;
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      Authorization: authHeader
+    }
+  });
+
+  if (!response.ok) {
+    let errorPayload: unknown;
+
+    try {
+      errorPayload = await response.json();
+    } catch {
+      errorPayload = await response.text();
+    }
+
+    throw new HttpError(502, toSafeErrorMessage(response.status), {
+      httpStatus: response.status,
+      endpoint: params.endpoint,
+      response: errorPayload
+    });
+  }
+
+  const totalPages = Math.max(
+    1,
+    Number.parseInt(response.headers.get("x-wp-totalpages") || "1", 10) || 1
+  );
+
+  return {
+    data: (await response.json()) as T,
+    totalPages
+  };
+};
+
 const usersMeSchema = z.object({
   id: z.number()
 });
@@ -263,19 +308,30 @@ export const wordpressAdapter = {
     const context = { action: "getPublishedContent", websiteId };
 
     try {
-      const [postsResponse, pagesResponse] = await Promise.all([
-        requestWordPress({
+      const fetchAll = async (type: "posts" | "pages") => {
+        const first = await requestWordPressCollection<unknown>({
           websiteId,
-          endpoint: "/posts?status=publish&per_page=100&_fields=id,title,link,slug"
-        }),
-        requestWordPress({
-          websiteId,
-          endpoint: "/pages?status=publish&per_page=100&_fields=id,title,link,slug"
-        })
-      ]);
+          endpoint: `/${type}?status=publish&per_page=100&page=1&_fields=id,title,link,slug`
+        });
 
-      const posts = wordpressContentListSchema.parse(postsResponse);
-      const pages = wordpressContentListSchema.parse(pagesResponse);
+        const items = wordpressContentListSchema.parse(first.data);
+
+        for (let page = 2; page <= first.totalPages; page += 1) {
+          const next = await requestWordPressCollection<unknown>({
+            websiteId,
+            endpoint: `/${type}?status=publish&per_page=100&page=${page}&_fields=id,title,link,slug`
+          });
+
+          items.push(...wordpressContentListSchema.parse(next.data));
+        }
+
+        return items;
+      };
+
+      const [posts, pages] = await Promise.all([
+        fetchAll("posts"),
+        fetchAll("pages")
+      ]);
 
       return [
         ...posts.map((item) => ({
