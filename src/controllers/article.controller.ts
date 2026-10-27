@@ -5,7 +5,10 @@ import { prisma } from "../config/database";
 import { HttpError } from "../errors/http.error";
 import { requireAuthUser } from "../middlewares/auth.middleware";
 import { createArticleResearch } from "../services/research.service";
-import { orchestrateArticle } from "../services/orchestration.service";
+import {
+  orchestrateArticle,
+  orchestrateArticleFromTopicFocus
+} from "../services/orchestration.service";
 import { reviewArticleQuality, reviseArticleFromQuality } from "../services/quality.service";
 import {
   publishArticleToWordPress,
@@ -20,6 +23,11 @@ const articleResearchSchema = z.object({
   topic: z.string().trim().min(3).max(300),
   primaryKeyword: z.string().trim().min(1).max(200),
   additionalInstructions: z.string().trim().max(2000).optional()
+});
+
+const topicFocusOrchestrationSchema = z.object({
+  websiteId: z.string().min(1),
+  topicFocusId: z.string().min(1).optional()
 });
 
 export const saveWordPressDraft = async (req: Request, res: Response): Promise<void> => {
@@ -112,6 +120,29 @@ export const writeArticle = async (req: Request, res: Response): Promise<void> =
   });
 
   res.status(200).json({
+    success: true,
+    data: result
+  });
+};
+
+export const orchestrateTopicFocusWorkflow = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const authUser = requireAuthUser(req);
+  const parsed = topicFocusOrchestrationSchema.safeParse(req.body);
+
+  if (!parsed.success) {
+    throw new HttpError(400, "Invalid Topic Focus orchestration payload");
+  }
+
+  const result = await orchestrateArticleFromTopicFocus({
+    companyId: authUser.companyId,
+    websiteId: parsed.data.websiteId,
+    topicFocusId: parsed.data.topicFocusId
+  });
+
+  res.status(201).json({
     success: true,
     data: result
   });
