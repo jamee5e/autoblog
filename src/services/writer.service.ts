@@ -12,7 +12,6 @@ import { prisma } from "../config/database";
 import { HttpError } from "../errors/http.error";
 import { createSystemLog } from "./system-log.service";
 import { resolveArticleCta } from "./article-cta.service";
-import { autoAssignArticleImages } from "./image-asset.service";
 import {
   getAllowedInternalLinksForArticle,
   recordArticleInternalLinks,
@@ -143,6 +142,9 @@ export const writeArticleDraft = async (input: WriteArticleInput) => {
           status: ArticleStatus.DRAFT
         }
       }),
+      prisma.articleImage.deleteMany({
+        where: { articleId: article.id }
+      }),
       prisma.aIRun.update({
         where: { id: aiRun.id },
         data: {
@@ -165,14 +167,6 @@ export const writeArticleDraft = async (input: WriteArticleInput) => {
       allowedInternalLinks
     );
 
-    const selectedImages = await autoAssignArticleImages(
-      input.companyId,
-      article.id,
-      {
-        inlineCount: 2
-      }
-    );
-
     await createSystemLog({
       module: "gemini-writer",
       level: SystemLogLevel.INFO,
@@ -185,7 +179,7 @@ export const writeArticleDraft = async (input: WriteArticleInput) => {
         outputTokens: result.usage.outputTokens,
         totalTokens: result.usage.totalTokens,
         internalLinkCount,
-        imageCount: selectedImages.length,
+        imageSelection: "deferred-until-quality-pass",
         finalCtaUrl: finalCta?.url ?? null
       }
     });
@@ -201,7 +195,7 @@ export const writeArticleDraft = async (input: WriteArticleInput) => {
       },
       finalCta,
       internalLinkCount,
-      imageCount: selectedImages.length
+      imageCount: 0
     };
   } catch (error) {
     const safeMessage =
