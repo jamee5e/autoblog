@@ -39,6 +39,7 @@ const logout = async () => {
         <RouterLink to="/generate">Generate Blog</RouterLink>
         <RouterLink to="/topic-focuses">Blog Topic Focus</RouterLink>
         <RouterLink to="/internal-links">Internal Links</RouterLink>
+        <RouterLink to="/images">Images</RouterLink>
         <RouterLink to="/articles">Articles</RouterLink>
 
         <span class="nav-section-label">Platform</span>
