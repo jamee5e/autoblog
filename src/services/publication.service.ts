@@ -7,6 +7,10 @@ import { prisma } from "../config/database";
 import { HttpError } from "../errors/http.error";
 import { createSystemLog } from "./system-log.service";
 import { appendArticleCta } from "./article-cta.service";
+import {
+  getFeaturedWordPressMediaId,
+  insertInlineImagesIntoContent
+} from "./image-asset.service";
 
 const getArticleForPublication = async (companyId: string, articleId: string) => {
   const article = await prisma.article.findFirst({
@@ -17,7 +21,16 @@ const getArticleForPublication = async (companyId: string, articleId: string) =>
       }
     },
     include: {
-      website: true
+      website: true,
+      images: {
+        include: {
+          imageAsset: true
+        },
+        orderBy: [
+          { role: "asc" },
+          { sortOrder: "asc" }
+        ]
+      }
     }
   });
 
@@ -38,16 +51,34 @@ const toWordPressArticleInput = (article: {
   excerpt: string | null;
   slug: string | null;
   ctaData: unknown;
+  images: Array<{
+    role: "FEATURED" | "INLINE";
+    sortOrder: number;
+    altText: string | null;
+    imageAsset: {
+      wordpressMediaId: number;
+      sourceUrl: string;
+      title: string;
+      width: number | null;
+      height: number | null;
+    };
+  }>;
 }) => {
   if (!article.title || !article.content) {
     throw new HttpError(409, "Article content is incomplete");
   }
 
+  const contentWithImages = insertInlineImagesIntoContent(
+    article.content,
+    article.images
+  );
+
   return {
     title: article.title,
-    content: appendArticleCta(article.content, article.ctaData),
+    content: appendArticleCta(contentWithImages, article.ctaData),
     excerpt: article.excerpt ?? undefined,
-    slug: article.slug ?? undefined
+    slug: article.slug ?? undefined,
+    featuredMediaId: getFeaturedWordPressMediaId(article.images)
   };
 };
 
