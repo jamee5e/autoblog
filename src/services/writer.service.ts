@@ -94,6 +94,10 @@ export const writeArticleDraft = async (input: WriteArticleInput) => {
       topic: article.topic,
       primaryKeyword: article.primaryKeyword,
       additionalInstructions: article.additionalInstructions,
+      contentFormat: article.contentFormat,
+      targetWordMin: article.targetWordMin,
+      targetWordMax: article.targetWordMax,
+      suggestedSections: article.suggestedSections,
       researchData: article.researchData,
       allowedInternalLinks: allowedInternalLinks.map((link) => ({
         title: link.pageTitle,
