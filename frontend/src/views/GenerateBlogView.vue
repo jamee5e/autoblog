@@ -1,72 +1,184 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import { api, getApiErrorMessage } from "@/services/api";
 import type {
+  BlogTopicFocus,
   OrchestrationResponse,
   ResearchResponse,
+  ScheduledContentSource,
   ScheduledJob,
   ScheduledJobAction,
   Website
 } from "@/types";
 
+type ContentSourceMode = "TOPIC_FOCUS" | "MANUAL";
+
 const websites = ref<Website[]>([]);
+const topicFocuses = ref<BlogTopicFocus[]>([]);
+const schedules = ref<ScheduledJob[]>([]);
+
+const contentSource = ref<ContentSourceMode>("TOPIC_FOCUS");
 const selectedWebsite = ref("");
+const selectedTopicFocusId = ref("__AUTO__");
 const topic = ref("");
 const keyword = ref("");
 const instructions = ref("");
-const submitting = ref(false);
-const errorMessage = ref("");
-const researchResult = ref<ResearchResponse | null>(null);
-const orchestrationResult = ref<OrchestrationResponse | null>(null);
-const activeAction = ref<"research" | "full" | null>(null);
+
 const scheduledDate = ref("");
 const scheduledTime = ref("");
 const scheduleAction = ref<ScheduledJobAction>("GENERATE_AND_DRAFT");
+
+const submitting = ref(false);
 const scheduling = ref(false);
-const scheduleSuccess = ref("");
-const schedules = ref<ScheduledJob[]>([]);
 const loadingSchedules = ref(false);
+const errorMessage = ref("");
+const successMessage = ref("");
+const researchResult = ref<ResearchResponse | null>(null);
+const orchestrationResult = ref<OrchestrationResponse | null>(null);
+const activeAction = ref<"research" | "full" | null>(null);
+
 const scheduleTimezone =
   Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Bangkok";
+
 let scheduleRefreshTimer: number | null = null;
 
-const briefIsValid = computed(
+const websiteTopicFocuses = computed(() =>
+  topicFocuses.value.filter(
+    (focus) => focus.websiteId === selectedWebsite.value && focus.active
+  )
+);
+
+const selectedTopicFocus = computed(() =>
+  selectedTopicFocusId.value === "__AUTO__"
+    ? null
+    : websiteTopicFocuses.value.find(
+        (focus) => focus.id === selectedTopicFocusId.value
+      ) ?? null
+);
+
+const dateOnlyFromNow = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const isFocusEligibleForDate = (
+  focus: BlogTopicFocus,
+  dateValue: string
+) => {
+  const start = focus.startDate?.slice(0, 10) || null;
+  const end = focus.endDate?.slice(0, 10) || null;
+
+  if (start && dateValue < start) return false;
+  if (end && dateValue > end) return false;
+  return focus.active;
+};
+
+const eligibleFocusesToday = computed(() => {
+  const today = dateOnlyFromNow();
+  return websiteTopicFocuses.value.filter((focus) =>
+    isFocusEligibleForDate(focus, today)
+  );
+});
+
+const selectedFocusEligibleNow = computed(() => {
+  if (selectedTopicFocusId.value === "__AUTO__") {
+    return eligibleFocusesToday.value.length > 0;
+  }
+
+  return selectedTopicFocus.value
+    ? isFocusEligibleForDate(selectedTopicFocus.value, dateOnlyFromNow())
+    : false;
+});
+
+const manualBriefIsValid = computed(
   () =>
     Boolean(selectedWebsite.value) &&
     topic.value.trim().length >= 3 &&
     keyword.value.trim().length > 0
 );
 
-const canResearch = computed(
-  () => briefIsValid.value && !submitting.value && !scheduling.value
+const focusBriefIsValid = computed(
+  () =>
+    Boolean(selectedWebsite.value) &&
+    websiteTopicFocuses.value.length > 0 &&
+    selectedFocusEligibleNow.value
 );
 
-const canSchedule = computed(
+const canGenerate = computed(
   () =>
-    briefIsValid.value &&
-    Boolean(scheduledDate.value) &&
-    Boolean(scheduledTime.value) &&
+    !submitting.value &&
+    !scheduling.value &&
+    (contentSource.value === "MANUAL"
+      ? manualBriefIsValid.value
+      : focusBriefIsValid.value)
+);
+
+const canResearchOnly = computed(
+  () =>
+    contentSource.value === "MANUAL" &&
+    manualBriefIsValid.value &&
     !submitting.value &&
     !scheduling.value
 );
 
-const minScheduleDate = computed(() => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+const minScheduleDate = computed(() => dateOnlyFromNow());
+
+const scheduleHasEligibleFocus = computed(() => {
+  if (contentSource.value !== "TOPIC_FOCUS" || !scheduledDate.value) {
+    return true;
+  }
+
+  if (selectedTopicFocusId.value === "__AUTO__") {
+    return websiteTopicFocuses.value.some((focus) =>
+      isFocusEligibleForDate(focus, scheduledDate.value)
+    );
+  }
+
+  return selectedTopicFocus.value
+    ? isFocusEligibleForDate(selectedTopicFocus.value, scheduledDate.value)
+    : false;
 });
 
-const loadWebsites = async () => {
-  try {
-    const { data } = await api.get("/websites");
-    websites.value = data.data;
-    if (websites.value[0]) selectedWebsite.value = websites.value[0].id;
-  } catch (error) {
-    errorMessage.value = getApiErrorMessage(error, "Unable to load websites.");
+const canSchedule = computed(() => {
+  if (
+    submitting.value ||
+    scheduling.value ||
+    !selectedWebsite.value ||
+    !scheduledDate.value ||
+    !scheduledTime.value
+  ) {
+    return false;
   }
+
+  if (contentSource.value === "MANUAL") {
+    return manualBriefIsValid.value;
+  }
+
+  return websiteTopicFocuses.value.length > 0 && scheduleHasEligibleFocus.value;
+});
+
+const formatDateOnly = (value: string | null) => {
+  if (!value) return "No limit";
+  const [year, month, day] = value.slice(0, 10).split("-");
+  return `${day}/${month}/${year}`;
+};
+
+const loadWebsites = async () => {
+  const { data } = await api.get("/websites");
+  websites.value = data.data;
+
+  if (!selectedWebsite.value && websites.value[0]) {
+    selectedWebsite.value = websites.value[0].id;
+  }
+};
+
+const loadTopicFocuses = async () => {
+  const { data } = await api.get("/topic-focuses");
+  topicFocuses.value = data.data;
 };
 
 const loadSchedules = async (silent = false) => {
@@ -87,6 +199,84 @@ const loadSchedules = async (silent = false) => {
   }
 };
 
+const generateFullArticle = async () => {
+  if (!canGenerate.value) return;
+
+  submitting.value = true;
+  activeAction.value = "full";
+  errorMessage.value = "";
+  successMessage.value = "";
+  researchResult.value = null;
+  orchestrationResult.value = null;
+
+  try {
+    const { data } =
+      contentSource.value === "TOPIC_FOCUS"
+        ? await api.post("/articles/orchestrate-topic-focus", {
+            websiteId: selectedWebsite.value,
+            topicFocusId:
+              selectedTopicFocusId.value === "__AUTO__"
+                ? undefined
+                : selectedTopicFocusId.value
+          })
+        : await api.post("/articles/orchestrate", {
+            websiteId: selectedWebsite.value,
+            topic: topic.value.trim(),
+            primaryKeyword: keyword.value.trim(),
+            additionalInstructions: instructions.value.trim() || undefined
+          });
+
+    orchestrationResult.value = data.data;
+    successMessage.value =
+      data.data.decision === "PASS"
+        ? "Full AI workflow completed. The article is ready for review."
+        : "Full AI workflow completed. Manual review is still required.";
+
+    if (contentSource.value === "TOPIC_FOCUS") {
+      await loadTopicFocuses();
+    }
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(
+      error,
+      "Unable to complete the full AI article workflow."
+    );
+  } finally {
+    submitting.value = false;
+    activeAction.value = null;
+  }
+};
+
+const researchTopic = async () => {
+  if (!canResearchOnly.value) return;
+
+  submitting.value = true;
+  activeAction.value = "research";
+  errorMessage.value = "";
+  successMessage.value = "";
+  researchResult.value = null;
+  orchestrationResult.value = null;
+
+  try {
+    const { data } = await api.post("/articles/research", {
+      websiteId: selectedWebsite.value,
+      topic: topic.value.trim(),
+      primaryKeyword: keyword.value.trim(),
+      additionalInstructions: instructions.value.trim() || undefined
+    });
+
+    researchResult.value = data.data;
+    successMessage.value = "Research Agent completed successfully.";
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(
+      error,
+      "Unable to complete Gemini research."
+    );
+  } finally {
+    submitting.value = false;
+    activeAction.value = null;
+  }
+};
+
 const scheduleFullArticle = async () => {
   if (!canSchedule.value) return;
 
@@ -104,23 +294,45 @@ const scheduleFullArticle = async () => {
 
   scheduling.value = true;
   errorMessage.value = "";
-  scheduleSuccess.value = "";
+  successMessage.value = "";
+
+  const scheduledContentSource: ScheduledContentSource =
+    contentSource.value === "MANUAL"
+      ? "MANUAL"
+      : selectedTopicFocusId.value === "__AUTO__"
+        ? "TOPIC_FOCUS_AUTO"
+        : "TOPIC_FOCUS_SELECTED";
+
+  const payload = {
+    websiteId: selectedWebsite.value,
+    contentSource: scheduledContentSource,
+    topicFocusId:
+      scheduledContentSource === "TOPIC_FOCUS_SELECTED"
+        ? selectedTopicFocusId.value
+        : undefined,
+    topic:
+      scheduledContentSource === "MANUAL"
+        ? topic.value.trim()
+        : undefined,
+    primaryKeyword:
+      scheduledContentSource === "MANUAL"
+        ? keyword.value.trim()
+        : undefined,
+    additionalInstructions:
+      scheduledContentSource === "MANUAL"
+        ? instructions.value.trim() || undefined
+        : undefined,
+    scheduledAt: localDateTime.toISOString(),
+    timezone: scheduleTimezone,
+    action: scheduleAction.value
+  };
 
   try {
-    await api.post("/schedules", {
-      websiteId: selectedWebsite.value,
-      topic: topic.value.trim(),
-      primaryKeyword: keyword.value.trim(),
-      additionalInstructions: instructions.value.trim() || undefined,
-      scheduledAt: localDateTime.toISOString(),
-      timezone: scheduleTimezone,
-      action: scheduleAction.value
-    });
-
-    scheduleSuccess.value =
+    await api.post("/schedules", payload);
+    successMessage.value =
       scheduleAction.value === "GENERATE_AND_DRAFT"
-        ? "Scheduled. The AI workflow will run automatically and save a WordPress draft after PASS."
-        : "Scheduled. The AI workflow will run automatically at the selected time.";
+        ? "Scheduled successfully. After PASS, the system will also save a WordPress draft."
+        : "Scheduled successfully. The system will stop at Ready for Review.";
 
     scheduledDate.value = "";
     scheduledTime.value = "";
@@ -137,11 +349,11 @@ const scheduleFullArticle = async () => {
 
 const cancelSchedule = async (scheduledJobId: string) => {
   errorMessage.value = "";
-  scheduleSuccess.value = "";
+  successMessage.value = "";
 
   try {
     await api.post(`/schedules/${scheduledJobId}/cancel`);
-    scheduleSuccess.value = "Scheduled workflow cancelled.";
+    successMessage.value = "Scheduled workflow cancelled.";
     await loadSchedules();
   } catch (error) {
     errorMessage.value = getApiErrorMessage(
@@ -162,64 +374,43 @@ const scheduleActionLabel = (action: ScheduledJobAction) =>
     ? "AI + WordPress Draft"
     : "AI Workflow Only";
 
-
-const researchTopic = async () => {
-  if (!canResearch.value) return;
-
-  submitting.value = true;
-  activeAction.value = "research";
-  errorMessage.value = "";
-  researchResult.value = null;
-  orchestrationResult.value = null;
-
-  try {
-    const { data } = await api.post("/articles/research", {
-      websiteId: selectedWebsite.value,
-      topic: topic.value.trim(),
-      primaryKeyword: keyword.value.trim(),
-      additionalInstructions: instructions.value.trim() || undefined
-    });
-
-    researchResult.value = data.data;
-  } catch (error) {
-    errorMessage.value = getApiErrorMessage(error, "Unable to complete Gemini research.");
-  } finally {
-    submitting.value = false;
-    activeAction.value = null;
+const scheduleSourceLabel = (job: ScheduledJob) => {
+  if (job.contentSource === "MANUAL") {
+    return `Manual · ${job.primaryKeyword || "No keyword"}`;
   }
+
+  if (job.contentSource === "TOPIC_FOCUS_SELECTED") {
+    return `Topic Focus · ${job.topicFocus?.title || "Selected Focus"}`;
+  }
+
+  return "Topic Focus · Auto Select";
 };
 
-const generateFullArticle = async () => {
-  if (!canResearch.value) return;
+watch(selectedWebsite, () => {
+  selectedTopicFocusId.value = "__AUTO__";
+});
 
-  submitting.value = true;
-  activeAction.value = "full";
+watch(contentSource, () => {
   errorMessage.value = "";
-  researchResult.value = null;
+  successMessage.value = "";
   orchestrationResult.value = null;
+  researchResult.value = null;
+});
 
+onMounted(async () => {
   try {
-    const { data } = await api.post("/articles/orchestrate", {
-      websiteId: selectedWebsite.value,
-      topic: topic.value.trim(),
-      primaryKeyword: keyword.value.trim(),
-      additionalInstructions: instructions.value.trim() || undefined
-    });
-
-    orchestrationResult.value = data.data;
+    await Promise.all([
+      loadWebsites(),
+      loadTopicFocuses(),
+      loadSchedules()
+    ]);
   } catch (error) {
     errorMessage.value = getApiErrorMessage(
       error,
-      "Unable to complete the full AI article workflow."
+      "Unable to load Generate Blog data."
     );
-  } finally {
-    submitting.value = false;
-    activeAction.value = null;
   }
-};
 
-onMounted(async () => {
-  await Promise.all([loadWebsites(), loadSchedules()]);
   scheduleRefreshTimer = window.setInterval(() => {
     void loadSchedules(true);
   }, 30_000);
@@ -238,75 +429,215 @@ onBeforeUnmount(() => {
       <div>
         <p class="eyebrow">AI CONTENT WORKFLOW</p>
         <h1>Generate Blog</h1>
-        <p>สร้างบทความแบบครบ Flow: Research → Writer → SEO & Quality → Ready for Review</p>
+        <p>สร้างบทความจาก Content Strategy หรือกรอกหัวข้อเอง และตั้งเวลาให้ระบบทำงานอัตโนมัติ</p>
       </div>
-      <span class="status-badge progress">Full AI Workflow Active</span>
+      <span class="status-badge success">Automation Ready</span>
     </div>
 
     <div v-if="errorMessage" class="alert danger">{{ errorMessage }}</div>
+    <div v-if="successMessage" class="alert success">{{ successMessage }}</div>
+
+    <section class="surface-card content-source-card">
+      <div class="content-source-heading">
+        <div>
+          <p class="eyebrow">CONTENT SOURCE</p>
+          <h2>Choose how to create this article</h2>
+        </div>
+        <RouterLink class="secondary-button" to="/topic-focuses">
+          Manage Topic Focus →
+        </RouterLink>
+      </div>
+
+      <div class="source-switch">
+        <button
+          type="button"
+          :class="{ active: contentSource === 'TOPIC_FOCUS' }"
+          @click="contentSource = 'TOPIC_FOCUS'"
+        >
+          <strong>Blog Topic Focus</strong>
+          <span>Use campaign strategy, keywords, angle and active date range</span>
+        </button>
+        <button
+          type="button"
+          :class="{ active: contentSource === 'MANUAL' }"
+          @click="contentSource = 'MANUAL'"
+        >
+          <strong>Manual Topic</strong>
+          <span>Enter a one-off topic and keyword manually</span>
+        </button>
+      </div>
+    </section>
 
     <section class="generate-grid">
       <article class="surface-card">
         <div class="card-heading">
           <div>
-            <p class="eyebrow">NEW ARTICLE</p>
-            <h2>Content Brief</h2>
+            <p class="eyebrow">
+              {{ contentSource === "TOPIC_FOCUS" ? "CONTENT STRATEGY" : "MANUAL BRIEF" }}
+            </p>
+            <h2>
+              {{ contentSource === "TOPIC_FOCUS" ? "Blog Topic Focus" : "Content Brief" }}
+            </h2>
           </div>
         </div>
 
-        <form class="form-grid" @submit.prevent="generateFullArticle">
+        <div class="form-grid">
           <label>
             Website
-            <select v-model="selectedWebsite" :disabled="submitting">
+            <select v-model="selectedWebsite" :disabled="submitting || scheduling">
               <option value="" disabled>Select website</option>
-              <option v-for="website in websites" :key="website.id" :value="website.id">
+              <option
+                v-for="website in websites"
+                :key="website.id"
+                :value="website.id"
+              >
                 {{ website.name }}
               </option>
             </select>
           </label>
 
-          <label>
-            Topic
-            <input
-              v-model="topic"
-              :disabled="submitting"
-              placeholder="Best time to visit Khao Sok"
-              required
-            />
-          </label>
+          <template v-if="contentSource === 'TOPIC_FOCUS'">
+            <label>
+              Topic Focus
+              <select
+                v-model="selectedTopicFocusId"
+                :disabled="submitting || scheduling || !selectedWebsite"
+              >
+                <option value="__AUTO__">Auto Select Best Focus</option>
+                <option
+                  v-for="focus in websiteTopicFocuses"
+                  :key="focus.id"
+                  :value="focus.id"
+                >
+                  {{ focus.title }} · P{{ focus.priority }}
+                </option>
+              </select>
+              <small>
+                Auto Select ใช้ Priority + Active Date + Last Used + Use Count
+              </small>
+            </label>
 
-          <label>
-            Primary Keyword
-            <input
-              v-model="keyword"
-              :disabled="submitting"
-              placeholder="best time to visit khao sok"
-              required
-            />
-          </label>
+            <div
+              v-if="selectedTopicFocus"
+              class="focus-preview"
+              :class="{ warning: !selectedFocusEligibleNow }"
+            >
+              <div class="focus-preview-head">
+                <div>
+                  <span class="meta-label">SELECTED FOCUS</span>
+                  <strong>{{ selectedTopicFocus.title }}</strong>
+                </div>
+                <span class="priority-chip">P{{ selectedTopicFocus.priority }}</span>
+              </div>
 
-          <label>
-            Additional Instructions
-            <textarea
-              v-model="instructions"
-              :disabled="submitting"
-              rows="6"
-              placeholder="Optional research direction..."
-            ></textarea>
-          </label>
+              <div class="focus-preview-grid">
+                <div>
+                  <span class="meta-label">FOCUS TOPIC</span>
+                  <p>{{ selectedTopicFocus.focusTopic }}</p>
+                </div>
+                <div>
+                  <span class="meta-label">ACTIVE PERIOD</span>
+                  <p>
+                    {{ formatDateOnly(selectedTopicFocus.startDate) }}
+                    →
+                    {{ formatDateOnly(selectedTopicFocus.endDate) }}
+                  </p>
+                </div>
+              </div>
 
-          <div class="button-row full">
-            <button class="primary-button" type="submit" :disabled="!canResearch">
+              <div v-if="selectedTopicFocus.keywords.length" class="keyword-chips">
+                <span
+                  v-for="focusKeyword in selectedTopicFocus.keywords"
+                  :key="focusKeyword"
+                >
+                  {{ focusKeyword }}
+                </span>
+              </div>
+
+              <div v-if="selectedTopicFocus.angle" class="focus-preview-copy">
+                <span class="meta-label">ANGLE</span>
+                <p>{{ selectedTopicFocus.angle }}</p>
+              </div>
+
+              <div v-if="!selectedFocusEligibleNow" class="empty-inline">
+                Focus นี้ยังไม่อยู่ในช่วง Active วันนี้ แต่ยังสามารถตั้ง Schedule
+                ให้ทำงานในช่วงวันที่ของ Campaign ได้
+              </div>
+            </div>
+
+            <div
+              v-else-if="selectedTopicFocusId === '__AUTO__'"
+              class="focus-auto-preview"
+            >
+              <div>
+                <span class="meta-label">AUTO SELECT</span>
+                <strong>{{ eligibleFocusesToday.length }} eligible focus today</strong>
+                <p>
+                  ระบบจะเลือก Campaign ที่เหมาะสมที่สุดจาก Priority และประวัติการใช้งาน
+                </p>
+              </div>
+              <RouterLink class="secondary-button" to="/topic-focuses">
+                View Strategy
+              </RouterLink>
+            </div>
+
+            <div v-if="websiteTopicFocuses.length === 0" class="empty-inline">
+              Website นี้ยังไม่มี Active Blog Topic Focus
+              <RouterLink to="/topic-focuses">สร้าง Topic Focus ก่อน →</RouterLink>
+            </div>
+          </template>
+
+          <template v-else>
+            <label>
+              Topic
+              <input
+                v-model="topic"
+                :disabled="submitting || scheduling"
+                placeholder="Best time to visit Khao Sok"
+                required
+              />
+            </label>
+
+            <label>
+              Primary Keyword
+              <input
+                v-model="keyword"
+                :disabled="submitting || scheduling"
+                placeholder="best time to visit khao sok"
+                required
+              />
+            </label>
+
+            <label>
+              Additional Instructions
+              <textarea
+                v-model="instructions"
+                :disabled="submitting || scheduling"
+                rows="5"
+                placeholder="Optional research direction..."
+              ></textarea>
+            </label>
+          </template>
+
+          <div class="button-row">
+            <button
+              class="primary-button"
+              type="button"
+              :disabled="!canGenerate"
+              @click="generateFullArticle"
+            >
               {{
                 activeAction === "full"
                   ? "AI workflow is running..."
                   : "Generate Full Article"
               }}
             </button>
+
             <button
+              v-if="contentSource === 'MANUAL'"
               class="secondary-button"
               type="button"
-              :disabled="!canResearch"
+              :disabled="!canResearchOnly"
               @click="researchTopic"
             >
               {{
@@ -317,14 +648,13 @@ onBeforeUnmount(() => {
             </button>
           </div>
 
-          <div v-if="activeAction === 'full'" class="info-banner green full">
+          <div v-if="activeAction === 'full'" class="info-banner green">
             <strong>Full workflow is running.</strong>
             <span>
-              Research, Writer, and Quality agents are working in sequence. If needed,
-              Writer revisions will run automatically up to 2 times.
+              Research → Writer → SEO & Quality → automatic revision up to 2 times.
             </span>
           </div>
-        </form>
+        </div>
       </article>
 
       <article class="surface-card">
@@ -339,43 +669,53 @@ onBeforeUnmount(() => {
           <div class="complete">
             <span>1</span>
             <div>
-              <strong>Research Agent</strong>
-              <small>Gemini · research intent, facts, sections and related keywords</small>
+              <strong>Content Strategy</strong>
+              <small>Topic Focus or Manual Brief</small>
             </div>
           </div>
-          <div>
+          <div class="complete">
             <span>2</span>
             <div>
-              <strong>Writer Agent</strong>
-              <small>Gemini pilot · create structured article content</small>
+              <strong>Research Agent</strong>
+              <small>Search intent, facts, sections and related keywords</small>
             </div>
           </div>
-          <div>
+          <div class="complete">
             <span>3</span>
             <div>
-              <strong>SEO & Quality Agent</strong>
-              <small>Gemini pilot · review SEO, quality and revision needs</small>
+              <strong>Writer Agent</strong>
+              <small>Create the full structured article</small>
             </div>
           </div>
-          <div>
+          <div class="complete">
             <span>4</span>
             <div>
-              <strong>Ready for Review</strong>
-              <small>Human approval before WordPress publishing</small>
+              <strong>SEO & Quality</strong>
+              <small>Score, review and auto revision up to 2 times</small>
+            </div>
+          </div>
+          <div class="complete">
+            <span>5</span>
+            <div>
+              <strong>Human Review</strong>
+              <small>WordPress Draft can be automatic; live Publish stays manual</small>
             </div>
           </div>
         </div>
 
         <div class="info-banner green">
-          <strong>Full AI workflow is active.</strong>
-          <span>
-            One click can now run Research → Writer → Quality with up to 2 automatic revisions.
-            WordPress Draft and Publish remain manual for human approval.
+          <strong>
+            {{ contentSource === "TOPIC_FOCUS" ? "Strategy-led generation" : "Manual generation" }}
+          </strong>
+          <span v-if="contentSource === 'TOPIC_FOCUS'">
+            Topic Focus keeps every article aligned with the selected campaign and date range.
+          </span>
+          <span v-else>
+            Manual Topic is best for one-off articles or urgent content requests.
           </span>
         </div>
       </article>
     </section>
-
 
     <section class="surface-card schedule-card">
       <div class="card-heading">
@@ -383,13 +723,27 @@ onBeforeUnmount(() => {
           <p class="eyebrow">AUTOMATION</p>
           <h2>Schedule Full Workflow</h2>
           <p class="schedule-helper">
-            เลือกวันและเวลาให้ระบบทำ Research → Writer → SEO & Quality อัตโนมัติ
+            Schedule uses the current Content Source selected above.
           </p>
         </div>
         <span class="status-badge progress">{{ scheduleTimezone }}</span>
       </div>
 
-      <div v-if="scheduleSuccess" class="alert success">{{ scheduleSuccess }}</div>
+      <div class="schedule-source-summary">
+        <span class="meta-label">CONTENT SOURCE</span>
+        <strong>
+          {{
+            contentSource === "MANUAL"
+              ? "Manual Topic"
+              : selectedTopicFocusId === "__AUTO__"
+                ? "Blog Topic Focus · Auto Select"
+                : `Blog Topic Focus · ${selectedTopicFocus?.title || "Selected"}`
+          }}
+        </strong>
+        <small v-if="contentSource === 'TOPIC_FOCUS'">
+          Focus จะถูกตรวจสอบกับ Active Date อีกครั้งเมื่อถึงเวลาทำงานจริง
+        </small>
+      </div>
 
       <div class="schedule-form-grid">
         <label>
@@ -436,11 +790,22 @@ onBeforeUnmount(() => {
         </button>
       </div>
 
+      <div
+        v-if="
+          contentSource === 'TOPIC_FOCUS' &&
+          scheduledDate &&
+          !scheduleHasEligibleFocus
+        "
+        class="alert waiting top-gap"
+      >
+        ไม่มี Topic Focus ที่ใช้งานได้ในวันที่เลือก กรุณาเปลี่ยนวันที่หรือ Campaign
+      </div>
+
       <div class="info-banner green top-gap">
-        <strong>Publishing remains manual.</strong>
+        <strong>Live publishing remains manual.</strong>
         <span>
-          Scheduled jobs can create a WordPress Draft automatically after PASS,
-          but they will not publish live without Admin approval.
+          Scheduler can generate the article and create a WordPress Draft after PASS,
+          but Admin still approves the final Publish.
         </span>
       </div>
 
@@ -471,12 +836,14 @@ onBeforeUnmount(() => {
         >
           <div class="schedule-main">
             <div class="schedule-title-row">
-              <strong>{{ job.topic }}</strong>
+              <strong>
+                {{ job.article?.title || job.topicFocus?.title || job.topic || "Scheduled Article" }}
+              </strong>
               <span class="schedule-status" :class="job.status.toLowerCase()">
                 {{ job.status }}
               </span>
             </div>
-            <span>{{ job.website.name }} · {{ job.primaryKeyword }}</span>
+            <span>{{ job.website.name }} · {{ scheduleSourceLabel(job) }}</span>
             <small>
               {{ formatScheduledAt(job.scheduledAt) }}
               · {{ job.timezone }}
@@ -517,18 +884,20 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-
     <section v-if="orchestrationResult" class="surface-card research-result-card">
       <div class="research-result-header">
         <div>
           <p class="eyebrow">FULL WORKFLOW COMPLETE</p>
-          <h2>{{ topic }}</h2>
+          <h2>{{ orchestrationResult.topicFocus?.title || topic || "Generated Article" }}</h2>
           <p>
             {{ orchestrationResult.decision === "PASS" ? "Ready for Review" : "Manual Review Needed" }}
             · Revision {{ orchestrationResult.revisionCount }}/{{ orchestrationResult.maxRevisions }}
           </p>
         </div>
-        <RouterLink class="primary-button" :to="`/articles/${orchestrationResult.articleId}`">
+        <RouterLink
+          class="primary-button"
+          :to="`/articles/${orchestrationResult.articleId}`"
+        >
           Review Article →
         </RouterLink>
       </div>
@@ -552,19 +921,13 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <div class="research-overview-grid">
-        <div class="research-block">
-          <span class="meta-label">RESEARCH MODEL</span>
-          <p>{{ orchestrationResult.research.model }}</p>
-        </div>
-        <div class="research-block">
-          <span class="meta-label">WRITER MODEL</span>
-          <p>{{ orchestrationResult.writer.model }}</p>
-        </div>
-        <div class="research-block">
-          <span class="meta-label">QUALITY MODEL</span>
-          <p>{{ orchestrationResult.quality.model }}</p>
-        </div>
+      <div
+        v-if="orchestrationResult.topicFocus"
+        class="focus-result-banner"
+      >
+        <span class="meta-label">TOPIC FOCUS USED</span>
+        <strong>{{ orchestrationResult.topicFocus.title }}</strong>
+        <span>{{ orchestrationResult.topicFocus.focusTopic }}</span>
       </div>
     </section>
 
@@ -578,49 +941,12 @@ onBeforeUnmount(() => {
             · {{ researchResult.usage.totalTokens ?? "—" }} tokens
           </p>
         </div>
-        <RouterLink class="primary-button" :to="`/articles/${researchResult.articleId}`">
+        <RouterLink
+          class="primary-button"
+          :to="`/articles/${researchResult.articleId}`"
+        >
           View Research →
         </RouterLink>
-      </div>
-
-      <div class="research-overview-grid">
-        <div class="research-block">
-          <span class="meta-label">SEARCH INTENT</span>
-          <p>{{ researchResult.research.searchIntent }}</p>
-        </div>
-        <div class="research-block">
-          <span class="meta-label">TARGET AUDIENCE</span>
-          <p>{{ researchResult.research.targetAudience }}</p>
-        </div>
-        <div class="research-block">
-          <span class="meta-label">CONTENT ANGLE</span>
-          <p>{{ researchResult.research.contentAngle }}</p>
-        </div>
-      </div>
-
-      <div class="research-detail-grid">
-        <div class="research-block">
-          <span class="meta-label">KEY QUESTIONS</span>
-          <ul class="research-list">
-            <li v-for="question in researchResult.research.keyQuestions" :key="question">
-              {{ question }}
-            </li>
-          </ul>
-        </div>
-
-        <div class="research-block">
-          <span class="meta-label">RECOMMENDED SECTIONS</span>
-          <div class="research-sections">
-            <div
-              v-for="section in researchResult.research.recommendedSections"
-              :key="section.heading"
-              class="research-section-item"
-            >
-              <strong>{{ section.heading }}</strong>
-              <span>{{ section.purpose }}</span>
-            </div>
-          </div>
-        </div>
       </div>
     </section>
   </AppLayout>
