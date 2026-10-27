@@ -292,6 +292,7 @@ export const reviseArticleFromQuality = async (input: {
       allowedInternalLinks: allowedInternalLinks.map((link) => ({
         title: link.pageTitle,
         url: link.url,
+        contentType: link.contentType,
         targetKeywords: link.targetKeywords,
         anchorSuggestions: link.anchorSuggestions
       })),
