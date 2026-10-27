@@ -298,6 +298,28 @@ export const getArticlePreview = async (req: Request, res: Response): Promise<vo
           name: true
         }
       },
+      images: {
+        include: {
+          imageAsset: {
+            select: {
+              id: true,
+              wordpressMediaId: true,
+              title: true,
+              sourceUrl: true,
+              altText: true,
+              keywords: true,
+              mimeType: true,
+              width: true,
+              height: true,
+              priority: true
+            }
+          }
+        },
+        orderBy: [
+          { role: "asc" },
+          { sortOrder: "asc" }
+        ]
+      },
       internalLinks: {
         include: {
           internalLink: {
@@ -376,6 +398,7 @@ export const getArticlePreview = async (req: Request, res: Response): Promise<vo
       publishedAt: article.publishedAt,
       createdAt: article.createdAt,
       website: article.website.name,
+      images: article.images,
       internalLinks: article.internalLinks,
       researchRun: latestResearchRun,
       writerRun: latestWriterRun,
