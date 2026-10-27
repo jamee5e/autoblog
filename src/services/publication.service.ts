@@ -1,4 +1,5 @@
 import {
+  ArticleImageRole,
   ArticleStatus,
   SystemLogLevel
 } from "@prisma/client";
@@ -52,7 +53,7 @@ const toWordPressArticleInput = (article: {
   slug: string | null;
   ctaData: unknown;
   images: Array<{
-    role: "FEATURED" | "INLINE";
+    role: ArticleImageRole;
     sortOrder: number;
     altText: string | null;
     imageAsset: {
