@@ -85,6 +85,12 @@ enum ScheduledJobAction {
   GENERATE_AND_DRAFT
 }
 
+enum ScheduledContentSource {
+  MANUAL
+  TOPIC_FOCUS_AUTO
+  TOPIC_FOCUS_SELECTED
+}
+
 model Company {
   id        String    @id @default(cuid())
   name      String
@@ -246,12 +252,14 @@ model ScheduledJob {
   websiteId              String             @map("website_id")
   createdById            String             @map("created_by_id")
   articleId              String?            @unique @map("article_id")
-  topic                   String
-  primaryKeyword          String             @map("primary_keyword")
-  additionalInstructions String?            @map("additional_instructions")
-  scheduledAt            DateTime           @map("scheduled_at")
-  timezone               String             @default("Asia/Bangkok")
-  action                 ScheduledJobAction @default(GENERATE_AND_DRAFT)
+  contentSource          ScheduledContentSource @default(MANUAL) @map("content_source")
+  topicFocusId           String?                @map("topic_focus_id")
+  topic                   String?
+  primaryKeyword          String?                @map("primary_keyword")
+  additionalInstructions String?                @map("additional_instructions")
+  scheduledAt            DateTime               @map("scheduled_at")
+  timezone               String                 @default("Asia/Bangkok")
+  action                 ScheduledJobAction     @default(GENERATE_AND_DRAFT)
   status                 ScheduledJobStatus @default(PENDING)
   lastError              String?            @map("last_error")
   startedAt              DateTime?          @map("started_at")
@@ -262,10 +270,12 @@ model ScheduledJob {
   company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   website   Website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
   createdBy User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
-  article   Article? @relation(fields: [articleId], references: [id], onDelete: SetNull)
+  article    Article?        @relation(fields: [articleId], references: [id], onDelete: SetNull)
+  topicFocus BlogTopicFocus? @relation(fields: [topicFocusId], references: [id], onDelete: SetNull)
 
   @@index([companyId])
   @@index([websiteId])
+  @@index([topicFocusId])
   @@index([status, scheduledAt])
   @@map("scheduled_jobs")
 }
@@ -288,7 +298,8 @@ model BlogTopicFocus {
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
-  website Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  website       Website        @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  scheduledJobs ScheduledJob[]
 
   @@index([websiteId])
   @@index([active])
