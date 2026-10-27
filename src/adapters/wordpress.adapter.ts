@@ -225,7 +225,7 @@ export const wordpressAdapter = {
           content: article.content,
           excerpt: article.excerpt,
           slug: article.slug,
-          ...(article.featuredMediaId
+          ...(article.featuredMediaId !== undefined
             ? { featured_media: article.featuredMediaId }
             : {}),
           status: "draft"
@@ -257,7 +257,7 @@ export const wordpressAdapter = {
           content: article.content,
           excerpt: article.excerpt,
           slug: article.slug,
-          ...(article.featuredMediaId
+          ...(article.featuredMediaId !== undefined
             ? { featured_media: article.featuredMediaId }
             : {})
         }
