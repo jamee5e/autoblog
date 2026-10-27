@@ -206,6 +206,13 @@ const executeScheduledJob = async (scheduledJobId: string): Promise<void> => {
   }
 
   try {
+    if (
+      job.contentSource === ScheduledContentSource.TOPIC_FOCUS_SELECTED &&
+      !job.topicFocusId
+    ) {
+      throw new HttpError(409, "Selected Blog Topic Focus no longer exists");
+    }
+
     const result =
       job.contentSource === ScheduledContentSource.MANUAL
         ? await orchestrateArticle({
