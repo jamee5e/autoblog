@@ -108,6 +108,7 @@ export const createArticleResearch = async (input: CreateResearchInput) => {
         where: { id: aiRun.id },
         data: {
           status: AIRunStatus.SUCCESS,
+          model: result.model,
           inputTokens: result.usage.inputTokens,
           outputTokens: result.usage.outputTokens,
           completedAt: new Date()
