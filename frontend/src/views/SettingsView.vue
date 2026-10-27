@@ -8,9 +8,9 @@ import AppLayout from "@/layouts/AppLayout.vue";
       <div>
         <p class="eyebrow">PLATFORM CONFIGURATION</p>
         <h1>Settings</h1>
-        <p>Brand profile และ integration settings สำหรับแต่ละเว็บไซต์</p>
+        <p>ตั้งค่า Brand Profile, Content Strategy และ integration ของแต่ละเว็บไซต์</p>
       </div>
-      <span class="status-badge neutral">Prepared for next phases</span>
+      <span class="status-badge progress">Production Setup</span>
     </div>
 
     <section class="settings-grid">
@@ -27,7 +27,10 @@ import AppLayout from "@/layouts/AppLayout.vue";
           <label>Target Audience<input disabled placeholder="International travelers" /></label>
           <label>Default CTA<textarea disabled rows="3" placeholder="Book your Khao Sok experience..." /></label>
         </div>
-        <div class="empty-inline">Brand Profile editing will be connected after the current WordPress phase.</div>
+        <div class="empty-inline">
+          Brand Profile ยังจัดการจาก backend ในเวอร์ชันนี้ ส่วน Campaign และ Topic Strategy จัดการได้ที่
+          <RouterLink to="/topic-focuses">Blog Topic Focus →</RouterLink>
+        </div>
       </article>
 
       <article class="surface-card">
