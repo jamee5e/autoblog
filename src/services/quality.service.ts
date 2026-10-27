@@ -13,6 +13,7 @@ import { prisma } from "../config/database";
 import { HttpError } from "../errors/http.error";
 import { createSystemLog } from "./system-log.service";
 import { resolveArticleCta } from "./article-cta.service";
+import { autoAssignArticleImages } from "./image-asset.service";
 import {
   getAllowedInternalLinksForArticle,
   recordArticleInternalLinks,
@@ -149,6 +150,50 @@ export const reviewArticleQuality = async (input: {
       })
     ]);
 
+    let imageCount = 0;
+
+    if (result.review.decision === "PASS") {
+      try {
+        const selectedImages = await autoAssignArticleImages(
+          input.companyId,
+          article.id,
+          {
+            inlineCount: 2
+          }
+        );
+
+        imageCount = selectedImages.length;
+
+        await createSystemLog({
+          module: "image-selection",
+          level: SystemLogLevel.INFO,
+          message:
+            selectedImages.length > 0
+              ? "Article images selected after quality pass"
+              : "Article passed quality but no relevant image was found",
+          metadata: {
+            articleId: article.id,
+            websiteId: article.websiteId,
+            imageCount
+          }
+        });
+      } catch (imageError) {
+        await createSystemLog({
+          module: "image-selection",
+          level: SystemLogLevel.WARN,
+          message: "Article passed quality but automatic image selection failed",
+          metadata: {
+            articleId: article.id,
+            websiteId: article.websiteId,
+            errorMessage:
+              imageError instanceof Error
+                ? imageError.message
+                : "Unknown image selection error"
+          }
+        });
+      }
+    }
+
     await createSystemLog({
       module: "gemini-quality",
       level: SystemLogLevel.INFO,
@@ -163,7 +208,8 @@ export const reviewArticleQuality = async (input: {
         revisionCount: article.revisionCount,
         inputTokens: result.usage.inputTokens,
         outputTokens: result.usage.outputTokens,
-        totalTokens: result.usage.totalTokens
+        totalTokens: result.usage.totalTokens,
+        imageCount
       }
     });
 
@@ -175,6 +221,7 @@ export const reviewArticleQuality = async (input: {
       review: result.review,
       revisionCount: article.revisionCount,
       maxRevisions: MAX_REVISIONS,
+      imageCount,
       canRevise:
         result.review.decision === "REVISION_REQUIRED" &&
         article.revisionCount < MAX_REVISIONS
@@ -345,6 +392,9 @@ export const reviseArticleFromQuality = async (input: {
           revisionCount: nextRevisionCount,
           status: ArticleStatus.DRAFT
         }
+      }),
+      prisma.articleImage.deleteMany({
+        where: { articleId: article.id }
       }),
       prisma.aIRun.update({
         where: { id: aiRun.id },
