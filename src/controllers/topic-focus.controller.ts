@@ -21,13 +21,19 @@ const topicFocusBaseSchema = z.object({
   websiteId: z.string().min(1),
   title: z.string().trim().min(2).max(160),
   focusTopic: z.string().trim().min(2).max(300),
-  keywords: z.array(z.string().trim().min(1).max(100)).max(50).default([]),
+  keywords: z.array(z.string().trim().min(1).max(100)).max(50),
   angle: z.string().trim().max(1500).nullable().optional(),
-  priority: z.number().int().min(1).max(10).default(5),
-  active: z.boolean().default(true),
+  priority: z.number().int().min(1).max(10),
+  active: z.boolean(),
   startDate: dateOnlySchema,
   endDate: dateOnlySchema,
   notes: z.string().trim().max(2000).nullable().optional()
+});
+
+const topicFocusCreateSchema = topicFocusBaseSchema.extend({
+  keywords: topicFocusBaseSchema.shape.keywords.default([]),
+  priority: topicFocusBaseSchema.shape.priority.default(5),
+  active: topicFocusBaseSchema.shape.active.default(true)
 });
 
 const topicFocusUpdateSchema = topicFocusBaseSchema.partial();
@@ -75,7 +81,7 @@ export const createBlogTopicFocus = async (
   res: Response
 ): Promise<void> => {
   const authUser = requireAuthUser(req);
-  const parsed = topicFocusBaseSchema.safeParse(req.body);
+  const parsed = topicFocusCreateSchema.safeParse(req.body);
 
   if (!parsed.success) {
     throw new HttpError(400, "Invalid blog topic focus payload");
