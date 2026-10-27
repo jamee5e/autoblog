@@ -93,6 +93,7 @@ model Company {
   users         User[]
   websites      Website[]
   scheduledJobs ScheduledJob[]
+  topicFocuses   BlogTopicFocus[]
 
   @@map("companies")
 }
@@ -267,4 +268,30 @@ model ScheduledJob {
   @@index([websiteId])
   @@index([status, scheduledAt])
   @@map("scheduled_jobs")
+}
+
+
+model BlogTopicFocus {
+  id          String    @id @default(cuid())
+  websiteId   String    @map("website_id")
+  title       String
+  focusTopic  String    @map("focus_topic")
+  keywords    String[]  @default([])
+  angle       String?
+  priority    Int       @default(5)
+  active      Boolean   @default(true)
+  startDate   DateTime? @db.Date @map("start_date")
+  endDate     DateTime? @db.Date @map("end_date")
+  notes       String?
+  lastUsedAt  DateTime? @map("last_used_at")
+  useCount    Int       @default(0) @map("use_count")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  website Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@index([websiteId])
+  @@index([active])
+  @@index([startDate, endDate])
+  @@map("blog_topic_focus")
 }
