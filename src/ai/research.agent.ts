@@ -144,7 +144,7 @@ export const runResearchAgent = async (
   const models = [...new Set([primaryModel, fallbackModel])];
   const prompt = buildResearchPrompt(input);
 
-  let interaction: Awaited<ReturnType<typeof client.interactions.create>> | undefined;
+  let interaction;
   let usedModel = primaryModel;
   let lastError: unknown;
 
