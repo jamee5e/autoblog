@@ -3,12 +3,13 @@ import { computed, onMounted, ref } from "vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import StatusBadge from "@/components/StatusBadge.vue";
 import { api } from "@/services/api";
-import type { ArticleSummary, BlogTopicFocus, ScheduledJob, Website } from "@/types";
+import type { ArticleSummary, BlogTopicFocus, InternalLink, ScheduledJob, Website } from "@/types";
 
 const websites = ref<Website[]>([]);
 const articles = ref<ArticleSummary[]>([]);
 const topicFocuses = ref<BlogTopicFocus[]>([]);
 const schedules = ref<ScheduledJob[]>([]);
+const internalLinks = ref<InternalLink[]>([]);
 const loading = ref(true);
 
 const publishedCount = computed(() => articles.value.filter((item) => item.status === "PUBLISHED").length);
@@ -18,19 +19,24 @@ const activeFocusCount = computed(() => topicFocuses.value.filter((item) => item
 const pendingScheduleCount = computed(() =>
   schedules.value.filter((item) => item.status === "PENDING" || item.status === "RUNNING").length
 );
+const activeInternalLinkCount = computed(() =>
+  internalLinks.value.filter((item) => item.active).length
+);
 
 onMounted(async () => {
   try {
-    const [websiteResponse, articleResponse, focusResponse, scheduleResponse] = await Promise.all([
+    const [websiteResponse, articleResponse, focusResponse, scheduleResponse, linkResponse] = await Promise.all([
       api.get("/websites"),
       api.get("/articles"),
       api.get("/topic-focuses"),
-      api.get("/schedules")
+      api.get("/schedules"),
+      api.get("/internal-links")
     ]);
     websites.value = websiteResponse.data.data;
     articles.value = articleResponse.data.data;
     topicFocuses.value = focusResponse.data.data;
     schedules.value = scheduleResponse.data.data;
+    internalLinks.value = linkResponse.data.data;
   } finally {
     loading.value = false;
   }
@@ -117,6 +123,30 @@ onMounted(async () => {
             <small>Recent schedule records in the system</small>
           </div>
           <strong>{{ schedules.length }}</strong>
+        </div>
+      </article>
+
+      <article class="surface-card">
+        <div class="card-heading">
+          <div>
+            <p class="eyebrow">SEO ASSETS</p>
+            <h2>Internal Links</h2>
+          </div>
+          <RouterLink to="/internal-links">Manage</RouterLink>
+        </div>
+        <div class="automation-summary-row">
+          <div>
+            <strong>Active Links</strong>
+            <small>Approved URLs available to Writer Agent</small>
+          </div>
+          <strong>{{ activeInternalLinkCount }}</strong>
+        </div>
+        <div class="automation-summary-row">
+          <div>
+            <strong>Total Links</strong>
+            <small>Across all connected websites</small>
+          </div>
+          <strong>{{ internalLinks.length }}</strong>
         </div>
       </article>
     </section>
