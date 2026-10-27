@@ -134,6 +134,28 @@ export interface ScheduledJob {
   } | null;
 }
 
+export interface BlogTopicFocus {
+  id: string;
+  websiteId: string;
+  title: string;
+  focusTopic: string;
+  keywords: string[];
+  angle: string | null;
+  priority: number;
+  active: boolean;
+  startDate: string | null;
+  endDate: string | null;
+  notes: string | null;
+  lastUsedAt: string | null;
+  useCount: number;
+  createdAt: string;
+  updatedAt: string;
+  website: {
+    id: string;
+    name: string;
+  };
+}
+
 export interface ArticleSummary {
   id: string;
   topic: string;
