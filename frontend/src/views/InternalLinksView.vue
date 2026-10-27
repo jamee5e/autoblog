@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import { api, getApiErrorMessage } from "@/services/api";
 import { useAuthStore } from "@/stores/auth";
@@ -267,6 +267,12 @@ const removeLink = async (link: InternalLink) => {
     actionId.value = null;
   }
 };
+
+watch(selectedWebsiteId, (websiteId) => {
+  if (!editingId.value) {
+    form.websiteId = websiteId;
+  }
+});
 
 const formatDateTime = (value: string | null) =>
   value
