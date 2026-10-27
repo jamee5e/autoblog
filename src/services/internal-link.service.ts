@@ -503,3 +503,67 @@ export const recordArticleInternalLinks = async (
 
   return usedIds.length;
 };
+
+
+export const getAllowedInternalLinksForArticle = async (
+  companyId: string,
+  articleId: string,
+  limit = 4
+): Promise<InternalLink[]> => {
+  const existing = await prisma.articleInternalLink.findMany({
+    where: {
+      articleId,
+      article: {
+        website: {
+          companyId
+        }
+      },
+      internalLink: {
+        active: true
+      }
+    },
+    include: {
+      internalLink: true
+    },
+    orderBy: {
+      createdAt: "asc"
+    }
+  });
+
+  const selected = await selectInternalLinksForArticle(
+    companyId,
+    articleId,
+    limit
+  );
+
+  const combined = new Map<string, InternalLink>();
+
+  for (const item of existing) {
+    combined.set(item.internalLink.id, item.internalLink);
+  }
+
+  for (const link of selected) {
+    if (combined.size >= limit) break;
+    combined.set(link.id, link);
+  }
+
+  return [...combined.values()].slice(0, limit);
+};
+
+export const sanitizeArticleInternalLinks = (
+  content: string,
+  allowedLinks: InternalLink[]
+) => {
+  const allowedByUrl = new Map(allowedLinks.map((link) => [link.url, link]));
+  const anchorPattern = /<a\b[^>]*\bhref=(["'])(.*?)\1[^>]*>([\s\S]*?)<\/a>/gi;
+
+  return content.replace(anchorPattern, (_full, _quote, rawUrl, innerHtml) => {
+    const url = String(rawUrl).trim();
+
+    if (!allowedByUrl.has(url)) {
+      return innerHtml;
+    }
+
+    return `<a href="${url}">${innerHtml}</a>`;
+  });
+};
