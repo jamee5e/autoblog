@@ -12,6 +12,7 @@ import { runWriterAgent } from "../ai/writer.agent";
 import { prisma } from "../config/database";
 import { HttpError } from "../errors/http.error";
 import { createSystemLog } from "./system-log.service";
+import { resolveArticleCta } from "./article-cta.service";
 import {
   getAllowedInternalLinksForArticle,
   recordArticleInternalLinks,
@@ -312,6 +313,10 @@ export const reviseArticleFromQuality = async (input: {
       result.draft.content,
       allowedInternalLinks
     );
+    const finalCta = resolveArticleCta(
+      result.draft.finalCta,
+      allowedInternalLinks
+    );
 
     await prisma.$transaction([
       prisma.article.update({
@@ -321,6 +326,9 @@ export const reviseArticleFromQuality = async (input: {
           slug: result.draft.slug,
           excerpt: result.draft.excerpt,
           content: sanitizedContent,
+          ctaData: finalCta
+            ? (JSON.parse(JSON.stringify(finalCta)) as Prisma.InputJsonValue)
+            : Prisma.DbNull,
           qualityData: Prisma.DbNull,
           qualityScore: null,
           seoScore: null,
@@ -360,7 +368,8 @@ export const reviseArticleFromQuality = async (input: {
         inputTokens: result.usage.inputTokens,
         outputTokens: result.usage.outputTokens,
         totalTokens: result.usage.totalTokens,
-        internalLinkCount
+        internalLinkCount,
+        finalCtaUrl: finalCta?.url ?? null
       }
     });
 
@@ -373,6 +382,7 @@ export const reviseArticleFromQuality = async (input: {
         ...result.draft,
         content: sanitizedContent
       },
+      finalCta,
       internalLinkCount,
       revisionCount: nextRevisionCount,
       maxRevisions: MAX_REVISIONS
