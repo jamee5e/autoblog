@@ -273,6 +273,22 @@ export const getArticlePreview = async (req: Request, res: Response): Promise<vo
           name: true
         }
       },
+      internalLinks: {
+        include: {
+          internalLink: {
+            select: {
+              id: true,
+              pageTitle: true,
+              url: true,
+              contentType: true,
+              priority: true
+            }
+          }
+        },
+        orderBy: {
+          createdAt: "asc"
+        }
+      },
       aiRuns: {
         where: {
           agentType: {
@@ -330,6 +346,7 @@ export const getArticlePreview = async (req: Request, res: Response): Promise<vo
       publishedAt: article.publishedAt,
       createdAt: article.createdAt,
       website: article.website.name,
+      internalLinks: article.internalLinks,
       researchRun: latestResearchRun,
       writerRun: latestWriterRun,
       qualityRun: latestQualityRun
