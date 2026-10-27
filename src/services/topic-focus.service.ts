@@ -179,11 +179,7 @@ export const selectTopicFocusForWebsite = async (
 ): Promise<BlogTopicFocus | null> => {
   await getAuthorizedWebsite(companyId, websiteId);
 
-  const today = new Date(Date.UTC(
-    now.getUTCFullYear(),
-    now.getUTCMonth(),
-    now.getUTCDate()
-  ));
+  const today = toBangkokDateOnly(now);
 
   const candidates = await prisma.blogTopicFocus.findMany({
     where: {
@@ -245,14 +241,25 @@ export const markTopicFocusUsed = async (topicFocusId: string) =>
   });
 
 
+const toBangkokDateOnly = (now = new Date()) => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Bangkok",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(now);
+
+  const year = Number(parts.find((part) => part.type === "year")?.value);
+  const month = Number(parts.find((part) => part.type === "month")?.value);
+  const day = Number(parts.find((part) => part.type === "day")?.value);
+
+  return new Date(Date.UTC(year, month - 1, day));
+};
+
 const isFocusActiveForDate = (focus: BlogTopicFocus, now = new Date()) => {
   if (!focus.active) return false;
 
-  const today = new Date(Date.UTC(
-    now.getUTCFullYear(),
-    now.getUTCMonth(),
-    now.getUTCDate()
-  ));
+  const today = toBangkokDateOnly(now);
 
   if (focus.startDate && focus.startDate.getTime() > today.getTime()) {
     return false;
