@@ -5,7 +5,7 @@ import AppLayout from "@/layouts/AppLayout.vue";
 import StatusBadge from "@/components/StatusBadge.vue";
 import { api, getApiErrorMessage } from "@/services/api";
 import { useAuthStore } from "@/stores/auth";
-import type { ArticlePreview } from "@/types";
+import type { ArticlePreview, ContentFormat } from "@/types";
 
 const route = useRoute();
 const auth = useAuthStore();
@@ -17,6 +17,18 @@ const checking = ref(false);
 const revising = ref(false);
 const savingWordPressDraft = ref(false);
 const publishingWordPress = ref(false);
+
+const formatLabel = (format: ContentFormat) => {
+  const labels: Record<ContentFormat, string> = {
+    AUTO: "Auto",
+    LIST_GUIDE: "List Guide",
+    DESTINATION_GUIDE: "Destination Guide",
+    COMPARISON: "Comparison",
+    PLANNING_GUIDE: "Planning Guide"
+  };
+
+  return labels[format];
+};
 
 const loadArticle = async () => {
   try {
@@ -177,6 +189,11 @@ onMounted(loadArticle);
             <StatusBadge :status="article.status" />
             <span>{{ article.website }} · {{ article.primaryKeyword }}</span>
           </div>
+          <small class="writing-profile-line">
+            {{ formatLabel(article.contentFormat) }}
+            · {{ article.targetWordMin }}–{{ article.targetWordMax }} words
+            · {{ article.suggestedSections || "Flexible" }} sections
+          </small>
         </article>
       </section>
 
