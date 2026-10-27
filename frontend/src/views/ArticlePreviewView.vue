@@ -17,6 +17,7 @@ const checking = ref(false);
 const revising = ref(false);
 const savingWordPressDraft = ref(false);
 const publishingWordPress = ref(false);
+const selectingImages = ref(false);
 
 const formatLabel = (format: ContentFormat) => {
   const labels: Record<ContentFormat, string> = {
@@ -132,6 +133,37 @@ const publishWordPress = async () => {
     await loadArticle();
   } finally {
     publishingWordPress.value = false;
+  }
+};
+
+const autoSelectImages = async () => {
+  if (!article.value?.content || selectingImages.value) return;
+
+  selectingImages.value = true;
+  errorMessage.value = "";
+  successMessage.value = "";
+
+  try {
+    const { data } = await api.post(
+      `/image-assets/articles/${route.params.id}/auto-select`,
+      {
+        inlineCount: 2
+      }
+    );
+
+    successMessage.value =
+      data.data.length > 0
+        ? `Selected ${data.data.length} WordPress image(s) for this article.`
+        : "No relevant active image was found. Update Image Library keywords and try again.";
+
+    await loadArticle();
+  } catch (error) {
+    errorMessage.value = getApiErrorMessage(
+      error,
+      "Unable to select article images."
+    );
+  } finally {
+    selectingImages.value = false;
   }
 };
 
@@ -338,6 +370,77 @@ onMounted(loadArticle);
           >
             {{ writing ? "Writer Agent is generating..." : "Generate Article Draft" }}
           </button>
+        </div>
+      </section>
+
+      <section class="surface-card content-assets-card">
+        <div class="card-heading">
+          <div>
+            <p class="eyebrow">CONTENT ASSETS</p>
+            <h2>Images</h2>
+          </div>
+          <div class="button-row">
+            <RouterLink class="secondary-button" to="/images">
+              Manage Library
+            </RouterLink>
+            <button
+              class="outline-button"
+              type="button"
+              :disabled="selectingImages || !article.content"
+              @click="autoSelectImages"
+            >
+              {{ selectingImages ? "Selecting..." : article.images.length ? "Refresh Images" : "Auto Select Images" }}
+            </button>
+          </div>
+        </div>
+
+        <div v-if="!article.content" class="empty-inline">
+          Images will be selected after the Writer Agent creates the article.
+        </div>
+
+        <div v-else-if="article.images.length === 0" class="empty-inline">
+          <strong>Needs Image</strong>
+          <span>
+            ไม่มีรูปที่ตรงกับบทความใน Image Library ตอนนี้
+            ให้เพิ่ม Keyword / Alt Text ของรูป แล้วกด Auto Select Images อีกครั้ง
+          </span>
+        </div>
+
+        <div v-else class="article-image-grid">
+          <article
+            v-for="item in article.images"
+            :key="item.id"
+            class="article-image-card"
+          >
+            <img
+              :src="item.imageAsset.sourceUrl"
+              :alt="item.altText || item.imageAsset.altText || item.imageAsset.title"
+              loading="lazy"
+            />
+            <div class="article-image-card-body">
+              <span class="image-role-chip">
+                {{ item.role === "FEATURED" ? "FEATURED IMAGE" : `INLINE ${item.sortOrder + 1}` }}
+              </span>
+              <strong>{{ item.imageAsset.title }}</strong>
+              <span>
+                {{ item.imageAsset.width || "?" }}×{{ item.imageAsset.height || "?" }}
+                · P{{ item.imageAsset.priority }}
+              </span>
+              <small>
+                Alt: {{ item.altText || item.imageAsset.altText || item.imageAsset.title }}
+              </small>
+            </div>
+          </article>
+        </div>
+
+        <div class="info-banner green top-gap">
+          <strong>
+            {{ article.images.length }} image(s) selected
+          </strong>
+          <span>
+            Featured Image จะถูกตั้งเป็น WordPress featured_media และ Inline Images
+            จะถูกแทรกในเนื้อหาก่อนสร้างหรืออัปเดต WordPress Draft
+          </span>
         </div>
       </section>
 
