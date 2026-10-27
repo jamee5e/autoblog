@@ -281,6 +281,10 @@ export interface ArticlePreview {
   excerpt: string | null;
   metaDescription: string | null;
   ctaData: ArticleCtaData | null;
+  contentFormat: ContentFormat;
+  targetWordMin: number;
+  targetWordMax: number;
+  suggestedSections: number | null;
   seoScore: number | null;
   content: string | null;
   status: string;
