@@ -3,24 +3,34 @@ import { computed, onMounted, ref } from "vue";
 import AppLayout from "@/layouts/AppLayout.vue";
 import StatusBadge from "@/components/StatusBadge.vue";
 import { api } from "@/services/api";
-import type { ArticleSummary, Website } from "@/types";
+import type { ArticleSummary, BlogTopicFocus, ScheduledJob, Website } from "@/types";
 
 const websites = ref<Website[]>([]);
 const articles = ref<ArticleSummary[]>([]);
+const topicFocuses = ref<BlogTopicFocus[]>([]);
+const schedules = ref<ScheduledJob[]>([]);
 const loading = ref(true);
 
 const publishedCount = computed(() => articles.value.filter((item) => item.status === "PUBLISHED").length);
 const readyCount = computed(() => articles.value.filter((item) => item.status === "READY").length);
 const failedCount = computed(() => articles.value.filter((item) => item.status === "FAILED").length);
+const activeFocusCount = computed(() => topicFocuses.value.filter((item) => item.active).length);
+const pendingScheduleCount = computed(() =>
+  schedules.value.filter((item) => item.status === "PENDING" || item.status === "RUNNING").length
+);
 
 onMounted(async () => {
   try {
-    const [websiteResponse, articleResponse] = await Promise.all([
+    const [websiteResponse, articleResponse, focusResponse, scheduleResponse] = await Promise.all([
       api.get("/websites"),
-      api.get("/articles")
+      api.get("/articles"),
+      api.get("/topic-focuses"),
+      api.get("/schedules")
     ]);
     websites.value = websiteResponse.data.data;
     articles.value = articleResponse.data.data;
+    topicFocuses.value = focusResponse.data.data;
+    schedules.value = scheduleResponse.data.data;
   } finally {
     loading.value = false;
   }
@@ -61,6 +71,56 @@ onMounted(async () => {
       </article>
     </section>
 
+    <section class="dashboard-automation-grid">
+      <article class="surface-card">
+        <div class="card-heading">
+          <div>
+            <p class="eyebrow">CONTENT STRATEGY</p>
+            <h2>Blog Topic Focus</h2>
+          </div>
+          <RouterLink to="/topic-focuses">Manage</RouterLink>
+        </div>
+        <div class="automation-summary-row">
+          <div>
+            <strong>Active Focus</strong>
+            <small>Campaigns currently available to AI workflows</small>
+          </div>
+          <strong>{{ activeFocusCount }}</strong>
+        </div>
+        <div class="automation-summary-row">
+          <div>
+            <strong>Total Focus</strong>
+            <small>Across all connected websites</small>
+          </div>
+          <strong>{{ topicFocuses.length }}</strong>
+        </div>
+      </article>
+
+      <article class="surface-card">
+        <div class="card-heading">
+          <div>
+            <p class="eyebrow">AUTOMATION</p>
+            <h2>Scheduled Workflows</h2>
+          </div>
+          <RouterLink to="/generate">Open Scheduler</RouterLink>
+        </div>
+        <div class="automation-summary-row">
+          <div>
+            <strong>Pending / Running</strong>
+            <small>Jobs waiting for their scheduled date and time</small>
+          </div>
+          <strong>{{ pendingScheduleCount }}</strong>
+        </div>
+        <div class="automation-summary-row">
+          <div>
+            <strong>Total Scheduled</strong>
+            <small>Recent schedule records in the system</small>
+          </div>
+          <strong>{{ schedules.length }}</strong>
+        </div>
+      </article>
+    </section>
+
     <section class="dashboard-grid">
       <article class="surface-card">
         <div class="card-heading">
@@ -73,7 +133,7 @@ onMounted(async () => {
         <div v-if="loading" class="empty-state">Loading...</div>
         <div v-else-if="articles.length === 0" class="empty-state">
           <strong>No articles generated yet.</strong>
-          <span>AI content generation will be enabled in Phase 3.</span>
+          <span>Create a Manual Topic or use Blog Topic Focus to generate the first article.</span>
         </div>
         <div v-else class="simple-list">
           <RouterLink
