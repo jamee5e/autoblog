@@ -2344,3 +2344,89 @@ details > summary {
     min-width: 0;
   }
 }
+
+
+.internal-link-table {
+  min-width: 980px;
+}
+
+.internal-link-table td {
+  vertical-align: top;
+}
+
+.row-inactive {
+  opacity: .6;
+}
+
+.table-toggle {
+  min-width: 42px;
+  padding: 5px 7px;
+  border: 1px solid #cfd6cf;
+  border-radius: 999px;
+  color: #777f79;
+  background: #f1f3f1;
+  font-size: 8px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.table-toggle.active {
+  color: #3f7743;
+  border-color: #b9d3b7;
+  background: #eaf5e8;
+}
+
+.internal-page-cell {
+  min-width: 240px;
+  max-width: 330px;
+}
+
+.internal-page-cell > strong {
+  display: block;
+  color: #304137;
+  font-size: 11px;
+}
+
+.internal-link-table .internal-link-url {
+  max-width: 310px;
+}
+
+.table-keywords {
+  max-width: 260px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.table-keywords span {
+  padding: 4px 6px;
+  border-radius: 999px;
+  color: #56645b;
+  background: #eef2eb;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.table-keywords small {
+  align-self: center;
+  color: #7d8881;
+  font-size: 8px;
+}
+
+.table-source-chip {
+  width: fit-content;
+  margin-top: 5px;
+}
+
+.table-actions {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.table-actions .secondary-button,
+.table-actions .outline-button {
+  padding: 6px 8px;
+  font-size: 9px;
+  white-space: nowrap;
+}
