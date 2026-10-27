@@ -295,6 +295,19 @@ onMounted(loadArticle);
             Meta: {{ article.metaDescription }}
           </p>
           <div class="article-content" v-html="article.content"></div>
+
+          <div v-if="article.ctaData" class="blog-final-cta">
+            <h2>{{ article.ctaData.heading }}</h2>
+            <p>{{ article.ctaData.description }}</p>
+            <a
+              :href="article.ctaData.url"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="blog-final-cta-button"
+            >
+              {{ article.ctaData.buttonText }} →
+            </a>
+          </div>
         </div>
 
         <div v-else class="writer-pending-state">
