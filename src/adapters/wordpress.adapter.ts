@@ -109,6 +109,17 @@ const draftResponseSchema = z.object({
   link: z.string().nullable().optional()
 });
 
+const wordpressContentItemSchema = z.object({
+  id: z.number(),
+  link: z.string(),
+  slug: z.string(),
+  title: z.object({
+    rendered: z.string()
+  })
+});
+
+const wordpressContentListSchema = z.array(wordpressContentItemSchema);
+
 export const wordpressAdapter = {
   async testConnection(websiteId: string): Promise<{ website: string }> {
     const context = { action: "testConnection", websiteId };
@@ -239,6 +250,52 @@ export const wordpressAdapter = {
     } catch (error) {
       await toErrorMetadata(error, context);
       throw new HttpError(502, "Unable to upload media to WordPress");
+    }
+  },
+
+  async getPublishedContent(websiteId: string): Promise<Array<{
+    id: number;
+    title: string;
+    url: string;
+    slug: string;
+    type: "post" | "page";
+  }>> {
+    const context = { action: "getPublishedContent", websiteId };
+
+    try {
+      const [postsResponse, pagesResponse] = await Promise.all([
+        requestWordPress({
+          websiteId,
+          endpoint: "/posts?status=publish&per_page=100&_fields=id,title,link,slug"
+        }),
+        requestWordPress({
+          websiteId,
+          endpoint: "/pages?status=publish&per_page=100&_fields=id,title,link,slug"
+        })
+      ]);
+
+      const posts = wordpressContentListSchema.parse(postsResponse);
+      const pages = wordpressContentListSchema.parse(pagesResponse);
+
+      return [
+        ...posts.map((item) => ({
+          id: item.id,
+          title: item.title.rendered,
+          url: item.link,
+          slug: item.slug,
+          type: "post" as const
+        })),
+        ...pages.map((item) => ({
+          id: item.id,
+          title: item.title.rendered,
+          url: item.link,
+          slug: item.slug,
+          type: "page" as const
+        }))
+      ];
+    } catch (error) {
+      await toErrorMetadata(error, context);
+      throw new HttpError(502, "Unable to fetch published WordPress content");
     }
   },
 
