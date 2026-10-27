@@ -311,6 +311,53 @@ onMounted(loadArticle);
         </div>
       </section>
 
+      <section class="surface-card content-assets-card">
+        <div class="card-heading">
+          <div>
+            <p class="eyebrow">CONTENT ASSETS</p>
+            <h2>Internal Links</h2>
+          </div>
+          <RouterLink class="secondary-button" to="/internal-links">
+            Manage Library
+          </RouterLink>
+        </div>
+
+        <div v-if="!article.content" class="empty-inline">
+          Internal links will be selected when the Writer Agent creates the article.
+        </div>
+
+        <div v-else-if="article.internalLinks.length === 0" class="empty-inline">
+          No relevant approved internal link was used in this article.
+        </div>
+
+        <div v-else class="article-internal-links">
+          <a
+            v-for="item in article.internalLinks"
+            :key="item.id"
+            class="article-internal-link-item"
+            :href="item.internalLink.url"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <div>
+              <strong>{{ item.internalLink.pageTitle }}</strong>
+              <span>{{ item.internalLink.url }}</span>
+              <small v-if="item.anchorText">
+                Anchor: {{ item.anchorText }}
+              </small>
+            </div>
+            <span class="priority-chip">P{{ item.internalLink.priority }}</span>
+          </a>
+        </div>
+
+        <div class="info-banner green top-gap">
+          <strong>{{ article.internalLinks.length }} approved internal link(s)</strong>
+          <span>
+            Writer Agent can only keep URLs from the Internal Link Library. Unknown AI-generated links are removed.
+          </span>
+        </div>
+      </section>
+
       <section class="surface-card quality-review-card">
         <div class="card-heading">
           <div>
