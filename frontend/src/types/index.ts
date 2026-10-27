@@ -87,6 +87,10 @@ export interface OrchestrationResponse {
     title: string;
     focusTopic: string;
     priority: number;
+    contentFormat: ContentFormat;
+    targetWordMin: number;
+    targetWordMax: number;
+    suggestedSections: number | null;
   };
   research: {
     model: string;
@@ -102,6 +106,13 @@ export interface OrchestrationResponse {
     review: QualityReview;
   };
 }
+
+export type ContentFormat =
+  | "AUTO"
+  | "LIST_GUIDE"
+  | "DESTINATION_GUIDE"
+  | "COMPARISON"
+  | "PLANNING_GUIDE";
 
 export type ScheduledJobStatus =
   | "PENDING"
@@ -204,6 +215,10 @@ export interface BlogTopicFocus {
   focusTopic: string;
   keywords: string[];
   angle: string | null;
+  contentFormat: ContentFormat;
+  targetWordMin: number;
+  targetWordMax: number;
+  suggestedSections: number | null;
   priority: number;
   active: boolean;
   startDate: string | null;
