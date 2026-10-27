@@ -6,6 +6,7 @@ import { wordpressAdapter } from "../adapters/wordpress.adapter";
 import { prisma } from "../config/database";
 import { HttpError } from "../errors/http.error";
 import { createSystemLog } from "./system-log.service";
+import { appendArticleCta } from "./article-cta.service";
 
 const getArticleForPublication = async (companyId: string, articleId: string) => {
   const article = await prisma.article.findFirst({
@@ -36,6 +37,7 @@ const toWordPressArticleInput = (article: {
   content: string | null;
   excerpt: string | null;
   slug: string | null;
+  ctaData: unknown;
 }) => {
   if (!article.title || !article.content) {
     throw new HttpError(409, "Article content is incomplete");
@@ -43,7 +45,7 @@ const toWordPressArticleInput = (article: {
 
   return {
     title: article.title,
-    content: article.content,
+    content: appendArticleCta(article.content, article.ctaData),
     excerpt: article.excerpt ?? undefined,
     slug: article.slug ?? undefined
   };
