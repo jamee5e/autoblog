@@ -150,9 +150,13 @@ export const writeArticleDraft = async (input: WriteArticleInput) => {
       })
     ]);
 
+    const contentForLinkTracking = finalCta
+      ? `${sanitizedContent}<a href="${finalCta.url}">${finalCta.buttonText}</a>`
+      : sanitizedContent;
+
     const internalLinkCount = await recordArticleInternalLinks(
       article.id,
-      sanitizedContent,
+      contentForLinkTracking,
       allowedInternalLinks
     );
 
