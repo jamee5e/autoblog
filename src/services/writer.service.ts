@@ -10,6 +10,11 @@ import { getGeminiWriterModel } from "../ai/gemini.client";
 import { prisma } from "../config/database";
 import { HttpError } from "../errors/http.error";
 import { createSystemLog } from "./system-log.service";
+import {
+  getAllowedInternalLinksForArticle,
+  recordArticleInternalLinks,
+  sanitizeArticleInternalLinks
+} from "./internal-link.service";
 
 export interface WriteArticleInput {
   companyId: string;
@@ -76,12 +81,24 @@ export const writeArticleDraft = async (input: WriteArticleInput) => {
   });
 
   try {
+    const allowedInternalLinks = await getAllowedInternalLinksForArticle(
+      input.companyId,
+      article.id,
+      4
+    );
+
     const result = await runWriterAgent({
       websiteName: article.website.name,
       topic: article.topic,
       primaryKeyword: article.primaryKeyword,
       additionalInstructions: article.additionalInstructions,
       researchData: article.researchData,
+      allowedInternalLinks: allowedInternalLinks.map((link) => ({
+        title: link.pageTitle,
+        url: link.url,
+        targetKeywords: link.targetKeywords,
+        anchorSuggestions: link.anchorSuggestions
+      })),
       language: brandProfile?.language,
       brandContext: brandProfile
         ? {
@@ -95,6 +112,11 @@ export const writeArticleDraft = async (input: WriteArticleInput) => {
         : undefined
     });
 
+    const sanitizedContent = sanitizeArticleInternalLinks(
+      result.draft.content,
+      allowedInternalLinks
+    );
+
     await prisma.$transaction([
       prisma.article.update({
         where: { id: article.id },
@@ -102,7 +124,7 @@ export const writeArticleDraft = async (input: WriteArticleInput) => {
           title: result.draft.title,
           slug: result.draft.slug,
           excerpt: result.draft.excerpt,
-          content: result.draft.content,
+          content: sanitizedContent,
           status: ArticleStatus.DRAFT
         }
       }),
@@ -118,6 +140,12 @@ export const writeArticleDraft = async (input: WriteArticleInput) => {
       })
     ]);
 
+    const internalLinkCount = await recordArticleInternalLinks(
+      article.id,
+      sanitizedContent,
+      allowedInternalLinks
+    );
+
     await createSystemLog({
       module: "gemini-writer",
       level: SystemLogLevel.INFO,
@@ -128,7 +156,8 @@ export const writeArticleDraft = async (input: WriteArticleInput) => {
         model: result.model,
         inputTokens: result.usage.inputTokens,
         outputTokens: result.usage.outputTokens,
-        totalTokens: result.usage.totalTokens
+        totalTokens: result.usage.totalTokens,
+        internalLinkCount
       }
     });
 
@@ -137,7 +166,11 @@ export const writeArticleDraft = async (input: WriteArticleInput) => {
       status: ArticleStatus.DRAFT,
       model: result.model,
       usage: result.usage,
-      draft: result.draft
+      draft: {
+        ...result.draft,
+        content: sanitizedContent
+      },
+      internalLinkCount
     };
   } catch (error) {
     const safeMessage =
