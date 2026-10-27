@@ -13,6 +13,12 @@ import {
   reviewArticleQuality,
   reviseArticleFromQuality
 } from "./quality.service";
+import {
+  buildResearchInputFromTopicFocus,
+  getTopicFocusForWebsite,
+  markTopicFocusUsed,
+  selectTopicFocusForWebsite
+} from "./topic-focus.service";
 
 export interface OrchestrateArticleInput extends CreateResearchInput {}
 
@@ -127,4 +133,68 @@ export const orchestrateArticle = async (input: OrchestrateArticleInput) => {
 
     throw new HttpError(502, "AI orchestration failed");
   }
+};
+
+
+export interface OrchestrateTopicFocusInput {
+  companyId: string;
+  websiteId: string;
+  topicFocusId?: string;
+}
+
+export const orchestrateArticleFromTopicFocus = async (
+  input: OrchestrateTopicFocusInput
+) => {
+  const focus = input.topicFocusId
+    ? await getTopicFocusForWebsite(
+        input.companyId,
+        input.websiteId,
+        input.topicFocusId
+      )
+    : await selectTopicFocusForWebsite(
+        input.companyId,
+        input.websiteId
+      );
+
+  if (!focus) {
+    throw new HttpError(
+      409,
+      "No active Blog Topic Focus is available for this website and date"
+    );
+  }
+
+  const brief = buildResearchInputFromTopicFocus(focus);
+
+  const result = await orchestrateArticle({
+    companyId: input.companyId,
+    websiteId: input.websiteId,
+    topic: brief.topic,
+    primaryKeyword: brief.primaryKeyword,
+    additionalInstructions: brief.additionalInstructions
+  });
+
+  await markTopicFocusUsed(focus.id);
+
+  await createSystemLog({
+    module: "topic-focus",
+    level: SystemLogLevel.INFO,
+    message: "Blog Topic Focus used for full AI workflow",
+    metadata: {
+      articleId: result.articleId,
+      websiteId: input.websiteId,
+      topicFocusId: focus.id,
+      topicFocusTitle: focus.title,
+      autoSelected: !input.topicFocusId
+    }
+  });
+
+  return {
+    ...result,
+    topicFocus: {
+      id: focus.id,
+      title: focus.title,
+      focusTopic: focus.focusTopic,
+      priority: focus.priority
+    }
+  };
 };
