@@ -96,6 +96,14 @@ enum InternalLinkSource {
   WORDPRESS
 }
 
+enum ContentFormat {
+  AUTO
+  LIST_GUIDE
+  DESTINATION_GUIDE
+  COMPARISON
+  PLANNING_GUIDE
+}
+
 model Company {
   id        String    @id @default(cuid())
   name      String
@@ -181,6 +189,10 @@ model Article {
   slug            String?
   metaDescription String?       @map("meta_description")
   ctaData         Json?          @map("cta_data")
+  contentFormat   ContentFormat  @default(AUTO) @map("content_format")
+  targetWordMin   Int            @default(700) @map("target_word_min")
+  targetWordMax   Int            @default(1000) @map("target_word_max")
+  suggestedSections Int?         @map("suggested_sections")
   excerpt         String?
   content         String?
   status          ArticleStatus @default(DRAFT)
@@ -296,6 +308,10 @@ model BlogTopicFocus {
   focusTopic  String    @map("focus_topic")
   keywords    String[]  @default([])
   angle       String?
+  contentFormat ContentFormat @default(AUTO) @map("content_format")
+  targetWordMin Int      @default(700) @map("target_word_min")
+  targetWordMax Int      @default(1000) @map("target_word_max")
+  suggestedSections Int? @map("suggested_sections")
   priority    Int       @default(5)
   active      Boolean   @default(true)
   startDate   DateTime? @db.Date @map("start_date")
