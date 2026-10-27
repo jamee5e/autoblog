@@ -213,26 +213,30 @@ const executeScheduledJob = async (scheduledJobId: string): Promise<void> => {
       throw new HttpError(409, "Selected Blog Topic Focus no longer exists");
     }
 
-    const result =
-      job.contentSource === ScheduledContentSource.MANUAL
-        ? await orchestrateArticle({
-            companyId: job.companyId,
-            websiteId: job.websiteId,
-            topic: job.topic as string,
-            primaryKeyword: job.primaryKeyword as string,
-            additionalInstructions: job.additionalInstructions ?? undefined
-          })
-        : await orchestrateArticleFromTopicFocus({
-            companyId: job.companyId,
-            websiteId: job.websiteId,
-            topicFocusId:
-              job.contentSource === ScheduledContentSource.TOPIC_FOCUS_SELECTED
-                ? job.topicFocusId ?? undefined
-                : undefined
-          });
+    let result: Awaited<ReturnType<typeof orchestrateArticle>>;
+    let resolvedTopicFocusId = job.topicFocusId;
 
-    const resolvedTopicFocusId =
-      "topicFocus" in result ? result.topicFocus.id : job.topicFocusId;
+    if (job.contentSource === ScheduledContentSource.MANUAL) {
+      result = await orchestrateArticle({
+        companyId: job.companyId,
+        websiteId: job.websiteId,
+        topic: job.topic as string,
+        primaryKeyword: job.primaryKeyword as string,
+        additionalInstructions: job.additionalInstructions ?? undefined
+      });
+    } else {
+      const topicFocusResult = await orchestrateArticleFromTopicFocus({
+        companyId: job.companyId,
+        websiteId: job.websiteId,
+        topicFocusId:
+          job.contentSource === ScheduledContentSource.TOPIC_FOCUS_SELECTED
+            ? job.topicFocusId ?? undefined
+            : undefined
+      });
+
+      result = topicFocusResult;
+      resolvedTopicFocusId = topicFocusResult.topicFocus.id;
+    }
 
     await prisma.scheduledJob.update({
       where: { id: job.id },
