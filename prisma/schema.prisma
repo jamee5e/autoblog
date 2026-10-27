@@ -91,6 +91,11 @@ enum ScheduledContentSource {
   TOPIC_FOCUS_SELECTED
 }
 
+enum InternalLinkSource {
+  MANUAL
+  WORDPRESS
+}
+
 model Company {
   id        String    @id @default(cuid())
   name      String
@@ -136,6 +141,7 @@ model Website {
   articles      Article[]
   scheduledJobs ScheduledJob[]
   topicFocuses   BlogTopicFocus[]
+  internalLinks  InternalLink[]
 
   @@index([companyId])
   @@map("websites")
@@ -188,6 +194,7 @@ model Article {
   aiRuns        AIRun[]
   notifications Notification[]
   scheduledJob  ScheduledJob?
+  internalLinks ArticleInternalLink[]
 
   @@index([websiteId])
   @@index([status])
@@ -305,4 +312,50 @@ model BlogTopicFocus {
   @@index([active])
   @@index([startDate, endDate])
   @@map("blog_topic_focus")
+}
+
+
+model InternalLink {
+  id                  String             @id @default(cuid())
+  websiteId           String             @map("website_id")
+  pageTitle           String             @map("page_title")
+  url                 String
+  targetKeywords      String[]           @default([]) @map("target_keywords")
+  anchorSuggestions   String[]           @default([]) @map("anchor_suggestions")
+  contentType         String?            @map("content_type")
+  priority            Int                @default(5)
+  active              Boolean            @default(true)
+  source              InternalLinkSource @default(MANUAL)
+  wordpressObjectId   Int?               @map("wordpress_object_id")
+  wordpressObjectType String?            @map("wordpress_object_type")
+  useCount            Int                @default(0) @map("use_count")
+  lastUsedAt          DateTime?          @map("last_used_at")
+  lastSyncedAt        DateTime?          @map("last_synced_at")
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+
+  website      Website               @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  articleLinks ArticleInternalLink[]
+
+  @@unique([websiteId, url])
+  @@index([websiteId])
+  @@index([active])
+  @@index([source])
+  @@map("internal_links")
+}
+
+model ArticleInternalLink {
+  id             String   @id @default(cuid())
+  articleId      String   @map("article_id")
+  internalLinkId String   @map("internal_link_id")
+  anchorText     String?  @map("anchor_text")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  article      Article      @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  internalLink InternalLink @relation(fields: [internalLinkId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, internalLinkId])
+  @@index([articleId])
+  @@index([internalLinkId])
+  @@map("article_internal_links")
 }
