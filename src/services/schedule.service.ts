@@ -1,11 +1,15 @@
 import {
+  ScheduledContentSource,
   ScheduledJobAction,
   ScheduledJobStatus,
   SystemLogLevel
 } from "@prisma/client";
 import { prisma } from "../config/database";
 import { HttpError } from "../errors/http.error";
-import { orchestrateArticle } from "./orchestration.service";
+import {
+  orchestrateArticle,
+  orchestrateArticleFromTopicFocus
+} from "./orchestration.service";
 import { saveArticleToWordPressDraft } from "./publication.service";
 import { createSystemLog } from "./system-log.service";
 
@@ -13,8 +17,10 @@ export interface CreateScheduledJobInput {
   companyId: string;
   createdById: string;
   websiteId: string;
-  topic: string;
-  primaryKeyword: string;
+  contentSource: ScheduledContentSource;
+  topicFocusId?: string;
+  topic?: string;
+  primaryKeyword?: string;
   additionalInstructions?: string;
   scheduledAt: Date;
   timezone: string;
@@ -41,13 +47,48 @@ export const createScheduledJob = async (input: CreateScheduledJobInput) => {
     throw new HttpError(400, "Scheduled date and time must be in the future");
   }
 
+  if (
+    input.contentSource === ScheduledContentSource.MANUAL &&
+    (!input.topic || !input.primaryKeyword)
+  ) {
+    throw new HttpError(400, "Manual schedules require topic and primary keyword");
+  }
+
+  if (
+    input.contentSource === ScheduledContentSource.TOPIC_FOCUS_SELECTED &&
+    !input.topicFocusId
+  ) {
+    throw new HttpError(400, "Selected Topic Focus schedules require topicFocusId");
+  }
+
+  if (input.topicFocusId) {
+    const focus = await prisma.blogTopicFocus.findFirst({
+      where: {
+        id: input.topicFocusId,
+        websiteId: website.id,
+        website: {
+          companyId: input.companyId
+        }
+      },
+      select: {
+        id: true
+      }
+    });
+
+    if (!focus) {
+      throw new HttpError(404, "Blog Topic Focus not found");
+    }
+  }
+
   const job = await prisma.scheduledJob.create({
     data: {
       companyId: input.companyId,
       websiteId: website.id,
       createdById: input.createdById,
-      topic: input.topic,
-      primaryKeyword: input.primaryKeyword,
+      contentSource: input.contentSource,
+      topicFocusId: input.topicFocusId || null,
+      topic: input.topic || null,
+      primaryKeyword: input.primaryKeyword || null,
       additionalInstructions: input.additionalInstructions || null,
       scheduledAt: input.scheduledAt,
       timezone: input.timezone,
@@ -97,6 +138,14 @@ export const listScheduledJobs = async (companyId: string) =>
           title: true,
           wordpressPostId: true,
           wordpressUrl: true
+        }
+      },
+      topicFocus: {
+        select: {
+          id: true,
+          title: true,
+          focusTopic: true,
+          priority: true
         }
       }
     },
@@ -157,13 +206,23 @@ const executeScheduledJob = async (scheduledJobId: string): Promise<void> => {
   }
 
   try {
-    const result = await orchestrateArticle({
-      companyId: job.companyId,
-      websiteId: job.websiteId,
-      topic: job.topic,
-      primaryKeyword: job.primaryKeyword,
-      additionalInstructions: job.additionalInstructions ?? undefined
-    });
+    const result =
+      job.contentSource === ScheduledContentSource.MANUAL
+        ? await orchestrateArticle({
+            companyId: job.companyId,
+            websiteId: job.websiteId,
+            topic: job.topic as string,
+            primaryKeyword: job.primaryKeyword as string,
+            additionalInstructions: job.additionalInstructions ?? undefined
+          })
+        : await orchestrateArticleFromTopicFocus({
+            companyId: job.companyId,
+            websiteId: job.websiteId,
+            topicFocusId:
+              job.contentSource === ScheduledContentSource.TOPIC_FOCUS_SELECTED
+                ? job.topicFocusId ?? undefined
+                : undefined
+          });
 
     await prisma.scheduledJob.update({
       where: { id: job.id },
