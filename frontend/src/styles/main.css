@@ -2075,6 +2075,7 @@ details > summary {
 }
 
 .nav-section-label {
+  grid-column: 1 / -1;
   margin: 14px 10px 5px;
   color: #829087;
   font-size: 8px;
