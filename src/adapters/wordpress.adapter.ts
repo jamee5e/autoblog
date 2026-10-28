@@ -307,13 +307,7 @@ export const wordpressAdapter = {
       });
 
       if (!response.ok) {
-        let errorPayload: unknown;
-
-        try {
-          errorPayload = await response.json();
-        } catch {
-          errorPayload = await response.text();
-        }
+        const errorPayload = await readErrorPayload(response);
 
         throw new HttpError(502, toSafeErrorMessage(response.status), {
           httpStatus: response.status,
