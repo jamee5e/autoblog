@@ -111,7 +111,7 @@ const requestWordPress = async <T>(params: {
 const requestWordPressCollection = async <T>(params: {
   websiteId: string;
   endpoint: string;
-}): Promise<{ data: T; totalPages: number }> => {
+}): Promise<{ data: T; totalPages: number; totalItems: number }> => {
   const credentials = await getWebsiteWordPressCredentials(params.websiteId);
   const authHeader = buildAuthHeader(
     credentials.username,
@@ -141,9 +141,16 @@ const requestWordPressCollection = async <T>(params: {
     Number.parseInt(response.headers.get("x-wp-totalpages") || "1", 10) || 1
   );
 
+  const totalItems =
+    Math.max(
+      0,
+      Number.parseInt(response.headers.get("x-wp-total") || "0", 10) || 0
+    );
+
   return {
     data: (await response.json()) as T,
-    totalPages
+    totalPages,
+    totalItems
   };
 };
 
@@ -340,21 +347,81 @@ export const wordpressAdapter = {
     try {
       const fields =
         "id,source_url,mime_type,media_type,title,alt_text,caption,description,media_details";
+      const ordering = "orderby=id&order=asc";
 
-      const first = await requestWordPressCollection<unknown>({
+      const probe = await requestWordPressCollection<unknown>({
         websiteId,
-        endpoint: `/media?per_page=100&page=1&_fields=${fields}`
+        endpoint: `/media?per_page=1&offset=0&${ordering}&_fields=id`
       });
 
-      const items = wordpressMediaListSchema.parse(first.data);
+      const totalItems = probe.totalItems;
 
-      for (let page = 2; page <= first.totalPages; page += 1) {
-        const next = await requestWordPressCollection<unknown>({
-          websiteId,
-          endpoint: `/media?per_page=100&page=${page}&_fields=${fields}`
-        });
+      if (totalItems === 0) {
+        return [];
+      }
 
-        items.push(...wordpressMediaListSchema.parse(next.data));
+      const fetchBatch = async (
+        offset: number,
+        limit: number
+      ): Promise<z.infer<typeof wordpressMediaItemSchema>[]> => {
+        try {
+          const response = await requestWordPressCollection<unknown>({
+            websiteId,
+            endpoint:
+              `/media?per_page=${limit}&offset=${offset}&${ordering}&_fields=${fields}`
+          });
+
+          return wordpressMediaListSchema.parse(response.data);
+        } catch (error) {
+          const status =
+            error instanceof HttpError &&
+            error.details &&
+            typeof error.details === "object" &&
+            "httpStatus" in error.details
+              ? Number((error.details as { httpStatus?: unknown }).httpStatus)
+              : null;
+
+          if (status !== null && status >= 500 && limit > 1) {
+            const firstSize = Math.floor(limit / 2);
+            const secondSize = limit - firstSize;
+
+            const first = await fetchBatch(offset, firstSize);
+            const second = await fetchBatch(offset + firstSize, secondSize);
+
+            return [...first, ...second];
+          }
+
+          if (status !== null && status >= 500 && limit === 1) {
+            await createSystemLog({
+              module: "wordpress",
+              level: SystemLogLevel.WARN,
+              message: "Skipped one WordPress media item after repeated server error",
+              metadata: {
+                action: "getMediaLibrary",
+                websiteId,
+                offset,
+                details:
+                  error instanceof HttpError
+                    ? error.details
+                    : undefined
+              }
+            });
+
+            return [];
+          }
+
+          throw error;
+        }
+      };
+
+      const items: z.infer<typeof wordpressMediaItemSchema>[] = [];
+      const batchSize = 100;
+
+      for (let offset = 0; offset < totalItems; offset += batchSize) {
+        const remaining = totalItems - offset;
+        const limit = Math.min(batchSize, remaining);
+        const batch = await fetchBatch(offset, limit);
+        items.push(...batch);
       }
 
       return items
