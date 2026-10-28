@@ -1,10 +1,12 @@
 import {
   ArticleImageRole,
-  ImageAsset
+  ImageAsset,
+  SystemLogLevel
 } from "@prisma/client";
 import { wordpressAdapter } from "../adapters/wordpress.adapter";
 import { prisma } from "../config/database";
 import { HttpError } from "../errors/http.error";
+import { createSystemLog } from "./system-log.service";
 
 export interface ImageAssetUpdateInput {
   title?: string;
@@ -222,21 +224,40 @@ export const syncImageAssetsFromWordPress = async (
     created += 1;
   }
 
-  const deactivated = await prisma.imageAsset.updateMany({
-    where: {
-      websiteId: website.id,
-      active: true,
-      ...(syncedIds.length > 0
-        ? {
+  const deactivated =
+    syncedIds.length > 0
+      ? await prisma.imageAsset.updateMany({
+          where: {
+            websiteId: website.id,
+            active: true,
             wordpressMediaId: {
               notIn: syncedIds
             }
+          },
+          data: {
+            active: false,
+            lastSyncedAt: now
           }
-        : {})
-    },
-    data: {
-      active: false,
-      lastSyncedAt: now
+        })
+      : { count: 0 };
+
+  await createSystemLog({
+    module: "image-library",
+    level:
+      media.length > 0
+        ? SystemLogLevel.INFO
+        : SystemLogLevel.WARN,
+    message:
+      media.length > 0
+        ? "WordPress image library sync completed"
+        : "WordPress image library returned zero images",
+    metadata: {
+      websiteId: website.id,
+      websiteName: website.name,
+      totalFromWordPress: media.length,
+      created,
+      updated,
+      deactivated: deactivated.count
     }
   });
 
