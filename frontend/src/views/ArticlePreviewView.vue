@@ -401,8 +401,8 @@ onMounted(loadArticle);
         <div v-else-if="article.images.length === 0" class="empty-inline">
           <strong>Needs Image</strong>
           <span>
-            ไม่มีรูปที่ตรงกับบทความใน Image Library ตอนนี้
-            ให้เพิ่ม Keyword / Alt Text ของรูป แล้วกด Auto Select Images อีกครั้ง
+            ไม่มีรูป Active ที่มี Keyword ตรงกับบทความใน Image Library ตอนนี้
+            ให้เพิ่ม Image Keywords แล้วกด Auto Select Images อีกครั้ง
           </span>
         </div>
 
@@ -438,9 +438,9 @@ onMounted(loadArticle);
             {{ article.images.length }} image(s) selected
           </strong>
           <span>
-            ระบบเลือกภาพจากบทความเวอร์ชันสุดท้ายหลัง Quality PASS
-            จากนั้น Featured Image จะถูกตั้งเป็น WordPress featured_media และ Inline Images
-            จะถูกแทรกในเนื้อหาก่อนสร้างหรืออัปเดต WordPress Draft
+            หลัง Quality PASS ระบบใช้ Keywords + Priority + ขนาดรูปจับคู่กับบริบทบทความที่มีอยู่แล้ว
+            โดยไม่เรียก AI API เพิ่ม จากนั้น Featured Image จะถูกตั้งเป็น WordPress featured_media
+            และ Inline Images จะถูกแทรกก่อนสร้างหรืออัปเดต WordPress Draft
           </span>
         </div>
       </section>
