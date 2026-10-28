@@ -2744,3 +2744,27 @@ details > summary {
     flex-direction: column;
   }
 }
+
+
+.image-selection-chip {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 20px;
+  margin-top: 8px;
+  padding: 0 7px;
+  align-items: center;
+  border-radius: 999px;
+  font-size: 8px;
+  font-weight: 850;
+  letter-spacing: .03em;
+}
+
+.image-selection-chip.ready {
+  color: #3f7743;
+  background: #eaf5e8;
+}
+
+.image-selection-chip.needs-keywords {
+  color: #8a6425;
+  background: #fff3d9;
+}
