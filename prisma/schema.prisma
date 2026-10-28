@@ -400,6 +400,7 @@ model ImageAsset {
   height            Int?
   priority          Int      @default(5)
   active            Boolean  @default(true)
+  selectionReady    Boolean  @default(false) @map("selection_ready")
   useCount          Int      @default(0) @map("use_count")
   lastUsedAt        DateTime? @map("last_used_at")
   lastSyncedAt      DateTime? @map("last_synced_at")
@@ -412,6 +413,7 @@ model ImageAsset {
   @@unique([websiteId, wordpressMediaId])
   @@index([websiteId])
   @@index([active])
+  @@index([selectionReady])
   @@map("image_assets")
 }
 
