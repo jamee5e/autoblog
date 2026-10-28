@@ -344,10 +344,20 @@ onMounted(loadData);
 
             <div
               class="info-banner"
-              :class="splitList(form.keywordsText).length ? 'green' : 'amber'"
+              :class="
+                splitList(form.keywordsText).length && selectedImage?.selectionReady
+                  ? 'green'
+                  : 'amber'
+              "
             >
               <strong>
-                {{ splitList(form.keywordsText).length ? "Ready for Auto Selection" : "Needs Keywords" }}
+                {{
+                  !splitList(form.keywordsText).length
+                    ? "Needs Keywords"
+                    : selectedImage?.selectionReady
+                      ? "Ready for Auto Selection"
+                      : "Save to Enable Auto Selection"
+                }}
               </strong>
               <span>
                 การเลือกรูปใช้ Keyword + Priority + ขนาดรูปในระบบเรา
