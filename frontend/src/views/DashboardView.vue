@@ -24,7 +24,9 @@ const activeInternalLinkCount = computed(() =>
   internalLinks.value.filter((item) => item.active).length
 );
 const activeImageCount = computed(() =>
-  imageAssets.value.filter((item) => item.active).length
+  imageAssets.value.filter(
+    (item) => item.active && item.selectionReady
+  ).length
 );
 
 onMounted(async () => {
@@ -173,8 +175,8 @@ onMounted(async () => {
         </div>
         <div class="automation-summary-row">
           <div>
-            <strong>Active Images</strong>
-            <small>WordPress images available to article workflows</small>
+            <strong>Ready Images</strong>
+            <small>Active images with curated keywords available for auto selection</small>
           </div>
           <strong>{{ activeImageCount }}</strong>
         </div>
