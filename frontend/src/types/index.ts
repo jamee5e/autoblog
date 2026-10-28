@@ -203,6 +203,7 @@ export interface ImageAsset {
   height: number | null;
   priority: number;
   active: boolean;
+  selectionReady: boolean;
   useCount: number;
   lastUsedAt: string | null;
   lastSyncedAt: string | null;
