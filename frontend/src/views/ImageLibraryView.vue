@@ -167,13 +167,20 @@ const syncWordPress = async () => {
       websiteId: selectedWebsiteId.value
     });
 
-    message.value = {
-      type: "success",
-      text:
-        `WordPress image sync complete: ${data.data.created} new, ` +
-        `${data.data.updated} updated, ${data.data.deactivated} deactivated ` +
-        `from ${data.data.totalFromWordPress} images.`
-    };
+    message.value =
+      data.data.totalFromWordPress > 0
+        ? {
+            type: "success",
+            text:
+              `WordPress image sync complete: ${data.data.created} new, ` +
+              `${data.data.updated} updated, ${data.data.deactivated} deactivated ` +
+              `from ${data.data.totalFromWordPress} images.`
+          }
+        : {
+            type: "danger",
+            text:
+              "WordPress returned 0 image items. Check System Logs → image-library / wordpress for the sync details."
+          };
 
     await loadData();
   } catch (error) {
