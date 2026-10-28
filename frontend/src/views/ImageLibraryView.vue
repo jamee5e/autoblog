@@ -15,7 +15,7 @@ const message = ref<{ type: "success" | "danger"; text: string } | null>(null);
 
 const selectedWebsiteId = ref("");
 const searchText = ref("");
-const statusFilter = ref<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
+const statusFilter = ref<"ALL" | "READY" | "ACTIVE" | "INACTIVE">("ALL");
 
 const form = reactive({
   title: "",
@@ -47,6 +47,10 @@ const filteredImages = computed(() => {
       return false;
     }
 
+    if (
+      statusFilter.value === "READY" &&
+      (!image.active || !image.selectionReady)
+    ) return false;
     if (statusFilter.value === "ACTIVE" && !image.active) return false;
     if (statusFilter.value === "INACTIVE" && image.active) return false;
 
@@ -312,7 +316,9 @@ onMounted(loadData);
                 rows="4"
                 placeholder="Phi Phi Islands, Maya Bay, snorkeling, Phuket island tour"
               ></textarea>
-              <small>ระบบใช้ Keywords เพื่อจับคู่รูปกับหัวข้อบทความ</small>
+              <small>
+                ต้องใส่ Keyword อย่างน้อย 1 คำ รูปจึงจะพร้อมให้ระบบเลือกอัตโนมัติ
+              </small>
             </label>
 
             <div class="topic-focus-two-col">
@@ -336,6 +342,19 @@ onMounted(loadData);
               </label>
             </div>
 
+            <div
+              class="info-banner"
+              :class="splitList(form.keywordsText).length ? 'green' : 'amber'"
+            >
+              <strong>
+                {{ splitList(form.keywordsText).length ? "Ready for Auto Selection" : "Needs Keywords" }}
+              </strong>
+              <span>
+                การเลือกรูปใช้ Keyword + Priority + ขนาดรูปในระบบเรา
+                และไม่เรียก AI API เพิ่ม
+              </span>
+            </div>
+
             <div class="button-row">
               <button class="primary-button" type="submit" :disabled="saving">
                 {{ saving ? "Saving..." : "Save Image Metadata" }}
@@ -353,9 +372,10 @@ onMounted(loadData);
         </div>
 
         <div class="info-banner green top-gap">
-          <strong>WordPress Media Library only</strong>
+          <strong>Curated keywords control image selection</strong>
           <span>
-            ระบบไม่ hotlink รูปจากเว็บอื่น และจะใช้เฉพาะรูปของ Website ที่สร้างบทความเท่านั้น
+            WordPress เก็บไฟล์รูป ส่วนระบบเราเก็บ Keywords, Priority และ Active
+            สำหรับเลือกภาพ โดยไม่ต้องส่งรูปไปวิเคราะห์กับ AI
           </span>
         </div>
       </article>
@@ -376,6 +396,7 @@ onMounted(loadData);
           />
           <select v-model="statusFilter">
             <option value="ALL">All Status</option>
+            <option value="READY">Ready for Auto Selection</option>
             <option value="ACTIVE">Active</option>
             <option value="INACTIVE">Inactive</option>
           </select>
@@ -419,6 +440,19 @@ onMounted(loadData);
                 #{{ image.wordpressMediaId }}
                 · {{ image.width || "?" }}×{{ image.height || "?" }}
                 · Used {{ image.useCount }}
+              </span>
+
+              <span
+                class="image-selection-chip"
+                :class="image.active && image.selectionReady ? 'ready' : 'needs-keywords'"
+              >
+                {{
+                  image.active && image.selectionReady
+                    ? "READY FOR AUTO SELECTION"
+                    : image.active
+                      ? "NEEDS KEYWORDS"
+                      : "INACTIVE"
+                }}
               </span>
 
               <p v-if="image.altText">{{ image.altText }}</p>
