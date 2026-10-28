@@ -35,6 +35,20 @@ const toSafeErrorMessage = (status: number): string => {
   return "WordPress request failed";
 };
 
+const readErrorPayload = async (response: Response): Promise<unknown> => {
+  const bodyText = await response.text();
+
+  if (!bodyText) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(bodyText);
+  } catch {
+    return bodyText;
+  }
+};
+
 const toErrorMetadata = async (error: unknown, context: Record<string, unknown>): Promise<void> => {
   if (error instanceof HttpError) {
     await createSystemLog({
@@ -82,13 +96,7 @@ const requestWordPress = async <T>(params: {
   });
 
   if (!response.ok) {
-    let errorPayload: unknown;
-
-    try {
-      errorPayload = await response.json();
-    } catch {
-      errorPayload = await response.text();
-    }
+    const errorPayload = await readErrorPayload(response);
 
     throw new HttpError(502, toSafeErrorMessage(response.status), {
       httpStatus: response.status,
@@ -119,13 +127,7 @@ const requestWordPressCollection = async <T>(params: {
   });
 
   if (!response.ok) {
-    let errorPayload: unknown;
-
-    try {
-      errorPayload = await response.json();
-    } catch {
-      errorPayload = await response.text();
-    }
+    const errorPayload = await readErrorPayload(response);
 
     throw new HttpError(502, toSafeErrorMessage(response.status), {
       httpStatus: response.status,
