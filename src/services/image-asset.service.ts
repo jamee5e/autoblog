@@ -67,6 +67,7 @@ export const listImageAssets = async (
     },
     orderBy: [
       { active: "desc" },
+      { selectionReady: "desc" },
       { priority: "desc" },
       { title: "asc" }
     ]
@@ -477,6 +478,20 @@ export const autoAssignArticleImages = async (
         }
       });
     }
+
+    await createSystemLog({
+      module: "image-selection",
+      level: SystemLogLevel.INFO,
+      message: "No curated active images are available for selection",
+      metadata: {
+        articleId: article.id,
+        websiteId: article.websiteId,
+        strategy: "LOCAL_KEYWORD_RANKING",
+        aiApiRequests: 0,
+        candidateCount: 0,
+        selectedCount: 0
+      }
+    });
 
     return [];
   }
