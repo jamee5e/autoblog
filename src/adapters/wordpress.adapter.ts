@@ -168,23 +168,23 @@ const wordpressContentListSchema = z.array(wordpressContentItemSchema);
 
 const wordpressMediaItemSchema = z.object({
   id: z.number(),
-  source_url: z.string(),
-  mime_type: z.string().optional(),
-  media_type: z.string().optional(),
+  source_url: z.string().min(1),
+  mime_type: z.string().nullable().optional(),
+  media_type: z.string().nullable().optional(),
   title: z.object({
-    rendered: z.string()
+    rendered: z.string().default("")
   }),
-  alt_text: z.string().optional().default(""),
+  alt_text: z.string().nullable().optional().default(""),
   caption: z.object({
-    rendered: z.string()
-  }).optional(),
+    rendered: z.string().default("")
+  }).nullable().optional(),
   description: z.object({
-    rendered: z.string()
-  }).optional(),
+    rendered: z.string().default("")
+  }).nullable().optional(),
   media_details: z.object({
-    width: z.number().optional(),
-    height: z.number().optional()
-  }).passthrough().optional()
+    width: z.number().nullable().optional(),
+    height: z.number().nullable().optional()
+  }).passthrough().nullable().optional()
 });
 
 const wordpressMediaListSchema = z.array(wordpressMediaItemSchema);
@@ -342,10 +342,12 @@ export const wordpressAdapter = {
     const context = { action: "getMediaLibrary", websiteId };
 
     try {
+      const fields =
+        "id,source_url,mime_type,media_type,title,alt_text,caption,description,media_details";
+
       const first = await requestWordPressCollection<unknown>({
         websiteId,
-        endpoint:
-          "/media?media_type=image&per_page=100&page=1&_fields=id,source_url,mime_type,media_type,title,alt_text,caption,description,media_details"
+        endpoint: `/media?per_page=100&page=1&_fields=${fields}`
       });
 
       const items = wordpressMediaListSchema.parse(first.data);
@@ -353,24 +355,29 @@ export const wordpressAdapter = {
       for (let page = 2; page <= first.totalPages; page += 1) {
         const next = await requestWordPressCollection<unknown>({
           websiteId,
-          endpoint:
-            `/media?media_type=image&per_page=100&page=${page}&_fields=id,source_url,mime_type,media_type,title,alt_text,caption,description,media_details`
+          endpoint: `/media?per_page=100&page=${page}&_fields=${fields}`
         });
 
         items.push(...wordpressMediaListSchema.parse(next.data));
       }
 
-      return items.map((item) => ({
-        id: item.id,
-        title: item.title.rendered,
-        sourceUrl: item.source_url,
-        altText: item.alt_text || "",
-        caption: item.caption?.rendered || "",
-        description: item.description?.rendered || "",
-        mimeType: item.mime_type || null,
-        width: item.media_details?.width ?? null,
-        height: item.media_details?.height ?? null
-      }));
+      return items
+        .filter(
+          (item) =>
+            item.media_type === "image" ||
+            item.mime_type?.toLowerCase().startsWith("image/")
+        )
+        .map((item) => ({
+          id: item.id,
+          title: item.title.rendered,
+          sourceUrl: item.source_url,
+          altText: item.alt_text || "",
+          caption: item.caption?.rendered || "",
+          description: item.description?.rendered || "",
+          mimeType: item.mime_type || null,
+          width: item.media_details?.width ?? null,
+          height: item.media_details?.height ?? null
+        }));
     } catch (error) {
       await toErrorMetadata(error, context);
       throw new HttpError(502, "Unable to fetch WordPress media library");
