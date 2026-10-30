@@ -27,6 +27,13 @@ export interface CreateScheduledJobInput {
   action: ScheduledJobAction;
 }
 
+export interface CreateRecurringScheduledJobsInput
+  extends Omit<CreateScheduledJobInput, "scheduledAt"> {
+  scheduledAtList: Date[];
+}
+
+const MAX_RECURRING_JOBS = 200;
+
 export const createScheduledJob = async (input: CreateScheduledJobInput) => {
   const website = await prisma.website.findFirst({
     where: {
@@ -120,6 +127,64 @@ export const createScheduledJob = async (input: CreateScheduledJobInput) => {
   return job;
 };
 
+export const createRecurringScheduledJobs = async (
+  input: CreateRecurringScheduledJobsInput
+) => {
+  const uniqueTimes = Array.from(
+    new Set(input.scheduledAtList.map((scheduledAt) => scheduledAt.getTime()))
+  )
+    .sort((a, b) => a - b)
+    .map((time) => new Date(time));
+
+  if (uniqueTimes.length === 0) {
+    throw new HttpError(400, "Recurring schedule requires at least one run");
+  }
+
+  if (uniqueTimes.length > MAX_RECURRING_JOBS) {
+    throw new HttpError(
+      400,
+      `Recurring schedule supports up to ${MAX_RECURRING_JOBS} runs at a time`
+    );
+  }
+
+  if (
+    uniqueTimes.some(
+      (scheduledAt) =>
+        Number.isNaN(scheduledAt.getTime()) ||
+        scheduledAt.getTime() <= Date.now()
+    )
+  ) {
+    throw new HttpError(400, "All recurring schedule times must be in the future");
+  }
+
+  const jobs = [];
+
+  for (const scheduledAt of uniqueTimes) {
+    jobs.push(
+      await createScheduledJob({
+        ...input,
+        scheduledAt
+      })
+    );
+  }
+
+  await createSystemLog({
+    module: "scheduler",
+    level: SystemLogLevel.INFO,
+    message: "Recurring article workflows scheduled",
+    metadata: {
+      websiteId: input.websiteId,
+      timezone: input.timezone,
+      action: input.action,
+      runCount: jobs.length,
+      firstRunAt: uniqueTimes[0],
+      lastRunAt: uniqueTimes[uniqueTimes.length - 1]
+    }
+  });
+
+  return jobs;
+};
+
 export const listScheduledJobs = async (companyId: string) =>
   prisma.scheduledJob.findMany({
     where: {
@@ -153,7 +218,7 @@ export const listScheduledJobs = async (companyId: string) =>
       { scheduledAt: "asc" },
       { createdAt: "desc" }
     ],
-    take: 100
+    take: 200
   });
 
 export const cancelScheduledJob = async (
