@@ -1630,6 +1630,97 @@ details > summary {
   font-size: 11px;
 }
 
+.schedule-mode-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin-bottom: 12px;
+}
+
+.schedule-mode-switch button {
+  min-height: 64px;
+  padding: 11px 13px;
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  border: 1px solid #dfe5dc;
+  border-radius: 10px;
+  background: #fbfcfa;
+  color: #405047;
+  cursor: pointer;
+}
+
+.schedule-mode-switch button:disabled {
+  cursor: not-allowed;
+  opacity: .6;
+}
+
+.schedule-mode-switch button.active {
+  border-color: #87966c;
+  background: #f3f7ee;
+  box-shadow: inset 0 0 0 1px #87966c;
+}
+
+.schedule-mode-switch strong {
+  font-size: 11px;
+}
+
+.schedule-mode-switch span {
+  color: #7d8981;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.recurring-schedule-panel {
+  margin-bottom: 12px;
+  padding: 12px 13px;
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  justify-content: space-between;
+  border: 1px solid #e0e6dc;
+  border-radius: 10px;
+  background: #f8faf6;
+}
+
+.recurring-schedule-panel small {
+  color: #7d8881;
+  font-size: 9px;
+  line-height: 1.45;
+  text-align: right;
+}
+
+.weekday-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 7px;
+}
+
+.weekday-selector button {
+  min-width: 46px;
+  min-height: 32px;
+  padding: 0 9px;
+  border: 1px solid #dfe4dd;
+  border-radius: 999px;
+  background: #fff;
+  color: #526158;
+  font-size: 9px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.weekday-selector button.active {
+  border-color: #87966c;
+  background: #edf4e6;
+  color: #435533;
+}
+
+.weekday-selector button:disabled {
+  cursor: not-allowed;
+  opacity: .6;
+}
+
 .schedule-form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr minmax(220px, 1.4fr) auto;
@@ -1648,6 +1739,10 @@ details > summary {
 .schedule-form-grid input,
 .schedule-form-grid select {
   min-height: 42px;
+}
+
+.schedule-form-grid.recurring {
+  grid-template-columns: 1fr 1fr 1fr minmax(220px, 1.4fr) auto;
 }
 
 .schedule-submit {
@@ -1764,7 +1859,8 @@ details > summary {
 }
 
 @media (max-width: 980px) {
-  .schedule-form-grid {
+  .schedule-form-grid,
+  .schedule-form-grid.recurring {
     grid-template-columns: 1fr 1fr;
   }
 
@@ -1774,14 +1870,21 @@ details > summary {
 }
 
 @media (max-width: 680px) {
-  .schedule-form-grid {
+  .schedule-mode-switch,
+  .schedule-form-grid,
+  .schedule-form-grid.recurring {
     grid-template-columns: 1fr;
   }
 
+  .recurring-schedule-panel,
   .schedule-item,
   .schedule-list-head {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .recurring-schedule-panel small {
+    text-align: left;
   }
 
   .schedule-actions {
