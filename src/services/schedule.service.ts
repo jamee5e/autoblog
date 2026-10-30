@@ -157,12 +157,13 @@ export const createRecurringScheduledJobs = async (
     throw new HttpError(400, "All recurring schedule times must be in the future");
   }
 
+  const { scheduledAtList: _scheduledAtList, ...baseInput } = input;
   const jobs = [];
 
   for (const scheduledAt of uniqueTimes) {
     jobs.push(
       await createScheduledJob({
-        ...input,
+        ...baseInput,
         scheduledAt
       })
     );
