@@ -14,6 +14,17 @@ import type {
 } from "@/types";
 
 type ContentSourceMode = "TOPIC_FOCUS" | "MANUAL";
+type ScheduleMode = "ONCE" | "WEEKLY";
+
+const weekdayOptions = [
+  { value: 1, label: "Mon" },
+  { value: 2, label: "Tue" },
+  { value: 3, label: "Wed" },
+  { value: 4, label: "Thu" },
+  { value: 5, label: "Fri" },
+  { value: 6, label: "Sat" },
+  { value: 0, label: "Sun" }
+];
 
 const formatLabel = (format: ContentFormat) => {
   const labels: Record<ContentFormat, string> = {
@@ -38,8 +49,12 @@ const topic = ref("");
 const keyword = ref("");
 const instructions = ref("");
 
+const scheduleMode = ref<ScheduleMode>("ONCE");
 const scheduledDate = ref("");
 const scheduledTime = ref("");
+const recurringStartDate = ref("");
+const recurringEndDate = ref("");
+const recurringWeekdays = ref<number[]>([]);
 const scheduleAction = ref<ScheduledJobAction>("GENERATE_AND_DRAFT");
 
 const submitting = ref(false);
@@ -139,21 +154,94 @@ const canResearchOnly = computed(
 );
 
 const minScheduleDate = computed(() => dateOnlyFromNow());
+const MAX_RECURRING_RUNS = 200;
+
+const toLocalDateInput = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const toggleRecurringWeekday = (day: number) => {
+  recurringWeekdays.value = recurringWeekdays.value.includes(day)
+    ? recurringWeekdays.value.filter((value) => value !== day)
+    : [...recurringWeekdays.value, day];
+};
+
+const recurringScheduledRuns = computed(() => {
+  if (
+    !recurringStartDate.value ||
+    !recurringEndDate.value ||
+    !scheduledTime.value ||
+    recurringWeekdays.value.length === 0
+  ) {
+    return [];
+  }
+
+  const start = new Date(`${recurringStartDate.value}T00:00:00`);
+  const end = new Date(`${recurringEndDate.value}T00:00:00`);
+
+  if (
+    Number.isNaN(start.getTime()) ||
+    Number.isNaN(end.getTime()) ||
+    start.getTime() > end.getTime()
+  ) {
+    return [];
+  }
+
+  const runs: Array<{ dateValue: string; dateTime: Date }> = [];
+  const cursor = new Date(start);
+
+  while (cursor.getTime() <= end.getTime() && runs.length <= MAX_RECURRING_RUNS) {
+    if (recurringWeekdays.value.includes(cursor.getDay())) {
+      const dateValue = toLocalDateInput(cursor);
+      const dateTime = new Date(`${dateValue}T${scheduledTime.value}:00`);
+
+      if (!Number.isNaN(dateTime.getTime()) && dateTime.getTime() > Date.now()) {
+        runs.push({ dateValue, dateTime });
+      }
+    }
+
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return runs;
+});
+
+const recurringTooMany = computed(
+  () => recurringScheduledRuns.value.length > MAX_RECURRING_RUNS
+);
+
+const scheduleDateValues = computed(() => {
+  if (scheduleMode.value === "ONCE") {
+    return scheduledDate.value ? [scheduledDate.value] : [];
+  }
+
+  return recurringScheduledRuns.value
+    .slice(0, MAX_RECURRING_RUNS)
+    .map((run) => run.dateValue);
+});
 
 const scheduleHasEligibleFocus = computed(() => {
-  if (contentSource.value !== "TOPIC_FOCUS" || !scheduledDate.value) {
+  if (
+    contentSource.value !== "TOPIC_FOCUS" ||
+    scheduleDateValues.value.length === 0
+  ) {
     return true;
   }
 
-  if (selectedTopicFocusId.value === "__AUTO__") {
-    return websiteTopicFocuses.value.some((focus) =>
-      isFocusEligibleForDate(focus, scheduledDate.value)
-    );
-  }
+  return scheduleDateValues.value.every((dateValue) => {
+    if (selectedTopicFocusId.value === "__AUTO__") {
+      return websiteTopicFocuses.value.some((focus) =>
+        isFocusEligibleForDate(focus, dateValue)
+      );
+    }
 
-  return selectedTopicFocus.value
-    ? isFocusEligibleForDate(selectedTopicFocus.value, scheduledDate.value)
-    : false;
+    return selectedTopicFocus.value
+      ? isFocusEligibleForDate(selectedTopicFocus.value, dateValue)
+      : false;
+  });
 });
 
 const canSchedule = computed(() => {
@@ -161,8 +249,24 @@ const canSchedule = computed(() => {
     submitting.value ||
     scheduling.value ||
     !selectedWebsite.value ||
-    !scheduledDate.value ||
     !scheduledTime.value
+  ) {
+    return false;
+  }
+
+  if (scheduleMode.value === "ONCE" && !scheduledDate.value) {
+    return false;
+  }
+
+  if (
+    scheduleMode.value === "WEEKLY" &&
+    (
+      !recurringStartDate.value ||
+      !recurringEndDate.value ||
+      recurringWeekdays.value.length === 0 ||
+      recurringScheduledRuns.value.length === 0 ||
+      recurringTooMany.value
+    )
   ) {
     return false;
   }
@@ -293,18 +397,6 @@ const researchTopic = async () => {
 const scheduleFullArticle = async () => {
   if (!canSchedule.value) return;
 
-  const localDateTime = new Date(
-    `${scheduledDate.value}T${scheduledTime.value}:00`
-  );
-
-  if (
-    Number.isNaN(localDateTime.getTime()) ||
-    localDateTime.getTime() <= Date.now()
-  ) {
-    errorMessage.value = "Choose a future date and time for the scheduled workflow.";
-    return;
-  }
-
   scheduling.value = true;
   errorMessage.value = "";
   successMessage.value = "";
@@ -316,7 +408,7 @@ const scheduleFullArticle = async () => {
         ? "TOPIC_FOCUS_AUTO"
         : "TOPIC_FOCUS_SELECTED";
 
-  const payload = {
+  const basePayload = {
     websiteId: selectedWebsite.value,
     contentSource: scheduledContentSource,
     topicFocusId:
@@ -335,26 +427,69 @@ const scheduleFullArticle = async () => {
       scheduledContentSource === "MANUAL"
         ? instructions.value.trim() || undefined
         : undefined,
-    scheduledAt: localDateTime.toISOString(),
     timezone: scheduleTimezone,
     action: scheduleAction.value
   };
 
   try {
-    await api.post("/schedules", payload);
+    let scheduledCount = 1;
+
+    if (scheduleMode.value === "ONCE") {
+      const localDateTime = new Date(
+        `${scheduledDate.value}T${scheduledTime.value}:00`
+      );
+
+      if (
+        Number.isNaN(localDateTime.getTime()) ||
+        localDateTime.getTime() <= Date.now()
+      ) {
+        throw new Error("Choose a future date and time for the scheduled workflow.");
+      }
+
+      await api.post("/schedules", {
+        ...basePayload,
+        scheduledAt: localDateTime.toISOString()
+      });
+
+      scheduledDate.value = "";
+    } else {
+      const runs = recurringScheduledRuns.value;
+
+      if (runs.length === 0) {
+        throw new Error("Choose at least one future recurring run.");
+      }
+
+      if (runs.length > MAX_RECURRING_RUNS) {
+        throw new Error(
+          `Recurring schedule supports up to ${MAX_RECURRING_RUNS} runs at a time.`
+        );
+      }
+
+      const { data } = await api.post("/schedules/recurring", {
+        ...basePayload,
+        scheduledAtList: runs.map((run) => run.dateTime.toISOString())
+      });
+
+      scheduledCount = data.count ?? runs.length;
+      recurringStartDate.value = "";
+      recurringEndDate.value = "";
+      recurringWeekdays.value = [];
+    }
+
     successMessage.value =
       scheduleAction.value === "GENERATE_AND_DRAFT"
-        ? "Scheduled successfully. After PASS, the system will also save a WordPress draft."
-        : "Scheduled successfully. The system will stop at Ready for Review.";
+        ? `Scheduled ${scheduledCount} automatic run${scheduledCount === 1 ? "" : "s"}. After PASS, each run will save a WordPress draft.`
+        : `Scheduled ${scheduledCount} automatic run${scheduledCount === 1 ? "" : "s"}. Each run will stop at Ready for Review.`;
 
-    scheduledDate.value = "";
-    scheduledTime.value = "";
     await loadSchedules();
   } catch (error) {
-    errorMessage.value = getApiErrorMessage(
-      error,
-      "Unable to schedule the article workflow."
-    );
+    errorMessage.value =
+      error instanceof Error && error.message.startsWith("Choose")
+        ? error.message
+        : getApiErrorMessage(
+            error,
+            "Unable to schedule the article workflow."
+          );
   } finally {
     scheduling.value = false;
   }
@@ -776,8 +911,59 @@ onBeforeUnmount(() => {
         </small>
       </div>
 
-      <div class="schedule-form-grid">
-        <label>
+      <div class="schedule-mode-switch">
+        <button
+          type="button"
+          :class="{ active: scheduleMode === 'ONCE' }"
+          :disabled="scheduling || submitting"
+          @click="scheduleMode = 'ONCE'"
+        >
+          <strong>One-time</strong>
+          <span>Run once on a specific date</span>
+        </button>
+        <button
+          type="button"
+          :class="{ active: scheduleMode === 'WEEKLY' }"
+          :disabled="scheduling || submitting"
+          @click="scheduleMode = 'WEEKLY'"
+        >
+          <strong>Weekly recurring</strong>
+          <span>Select weekdays and an end date</span>
+        </button>
+      </div>
+
+      <div v-if="scheduleMode === 'WEEKLY'" class="recurring-schedule-panel">
+        <div>
+          <span class="meta-label">RUN ON</span>
+          <div class="weekday-selector">
+            <button
+              v-for="day in weekdayOptions"
+              :key="day.value"
+              type="button"
+              :class="{ active: recurringWeekdays.includes(day.value) }"
+              :disabled="scheduling || submitting"
+              @click="toggleRecurringWeekday(day.value)"
+            >
+              {{ day.label }}
+            </button>
+          </div>
+        </div>
+        <small>
+          {{
+            recurringTooMany
+              ? `More than ${MAX_RECURRING_RUNS} runs — shorten the date range.`
+              : recurringScheduledRuns.length
+                ? `${recurringScheduledRuns.length} automatic runs will be created.`
+                : "Choose weekdays, start date, end date and time."
+          }}
+        </small>
+      </div>
+
+      <div
+        class="schedule-form-grid"
+        :class="{ recurring: scheduleMode === 'WEEKLY' }"
+      >
+        <label v-if="scheduleMode === 'ONCE'">
           Date
           <input
             v-model="scheduledDate"
@@ -786,6 +972,28 @@ onBeforeUnmount(() => {
             :disabled="scheduling || submitting"
           />
         </label>
+
+        <template v-else>
+          <label>
+            Start Date
+            <input
+              v-model="recurringStartDate"
+              type="date"
+              :min="minScheduleDate"
+              :disabled="scheduling || submitting"
+            />
+          </label>
+
+          <label>
+            End Date
+            <input
+              v-model="recurringEndDate"
+              type="date"
+              :min="recurringStartDate || minScheduleDate"
+              :disabled="scheduling || submitting"
+            />
+          </label>
+        </template>
 
         <label>
           Time
@@ -817,26 +1025,32 @@ onBeforeUnmount(() => {
           :disabled="!canSchedule"
           @click="scheduleFullArticle"
         >
-          {{ scheduling ? "Scheduling..." : "Schedule Automatic Run" }}
+          {{
+            scheduling
+              ? "Scheduling..."
+              : scheduleMode === "WEEKLY"
+                ? "Schedule Recurring Runs"
+                : "Schedule Automatic Run"
+          }}
         </button>
       </div>
 
       <div
         v-if="
           contentSource === 'TOPIC_FOCUS' &&
-          scheduledDate &&
+          scheduleDateValues.length &&
           !scheduleHasEligibleFocus
         "
         class="alert waiting top-gap"
       >
-        ไม่มี Topic Focus ที่ใช้งานได้ในวันที่เลือก กรุณาเปลี่ยนวันที่หรือ Campaign
+        มีอย่างน้อยหนึ่งวันที่ไม่มี Topic Focus ที่ใช้งานได้ กรุณาปรับช่วงวันที่หรือ Campaign
       </div>
 
       <div class="info-banner green top-gap">
         <strong>Live publishing remains manual.</strong>
         <span>
-          Scheduler can generate the article and create a WordPress Draft after PASS,
-          but Admin still approves the final Publish.
+          Scheduler can run once or repeat on selected weekdays until the end date.
+          After PASS it can create a WordPress Draft, but Admin still approves the final Publish.
         </span>
       </div>
 
