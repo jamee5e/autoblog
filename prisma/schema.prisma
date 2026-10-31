@@ -72,13 +72,51 @@ enum SystemLogLevel {
   ERROR
 }
 
+enum ScheduledJobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ScheduledJobAction {
+  GENERATE_ONLY
+  GENERATE_AND_DRAFT
+}
+
+enum ScheduledContentSource {
+  MANUAL
+  TOPIC_FOCUS_AUTO
+  TOPIC_FOCUS_SELECTED
+}
+
+enum InternalLinkSource {
+  MANUAL
+  WORDPRESS
+}
+
+enum ContentFormat {
+  AUTO
+  LIST_GUIDE
+  DESTINATION_GUIDE
+  COMPARISON
+  PLANNING_GUIDE
+}
+
+enum ArticleImageRole {
+  FEATURED
+  INLINE
+}
+
 model Company {
   id        String    @id @default(cuid())
   name      String
   createdAt DateTime  @default(now()) @map("created_at")
 
-  users    User[]
-  websites Website[]
+  users         User[]
+  websites      Website[]
+  scheduledJobs ScheduledJob[]
 
   @@map("companies")
 }
@@ -92,7 +130,8 @@ model User {
   role         UserRole
   createdAt    DateTime @default(now()) @map("created_at")
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  scheduledJobs ScheduledJob[]
 
   @@index([companyId])
   @@map("users")
@@ -113,6 +152,10 @@ model Website {
   company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   brandProfiles BrandProfile[]
   articles      Article[]
+  scheduledJobs ScheduledJob[]
+  topicFocuses   BlogTopicFocus[]
+  internalLinks  InternalLink[]
+  imageAssets     ImageAsset[]
 
   @@index([companyId])
   @@map("websites")
@@ -143,9 +186,19 @@ model Article {
   websiteId        String        @map("website_id")
   topic           String
   primaryKeyword  String        @map("primary_keyword")
+  additionalInstructions String? @map("additional_instructions")
+  researchData    Json?          @map("research_data")
+  qualityData     Json?          @map("quality_data")
+  qualityScore    Int?           @map("quality_score")
+  revisionCount   Int            @default(0) @map("revision_count")
   title           String?
   slug            String?
   metaDescription String?       @map("meta_description")
+  ctaData         Json?          @map("cta_data")
+  contentFormat   ContentFormat  @default(AUTO) @map("content_format")
+  targetWordMin   Int            @default(700) @map("target_word_min")
+  targetWordMax   Int            @default(1000) @map("target_word_max")
+  suggestedSections Int?         @map("suggested_sections")
   excerpt         String?
   content         String?
   status          ArticleStatus @default(DRAFT)
@@ -159,6 +212,9 @@ model Article {
   website       Website        @relation(fields: [websiteId], references: [id], onDelete: Cascade)
   aiRuns        AIRun[]
   notifications Notification[]
+  scheduledJob  ScheduledJob?
+  internalLinks ArticleInternalLink[]
+  images        ArticleImage[]
 
   @@index([websiteId])
   @@index([status])
@@ -214,4 +270,166 @@ model SystemLog {
   @@index([level])
   @@index([createdAt])
   @@map("system_logs")
+}
+
+
+model ScheduledJob {
+  id                     String             @id @default(cuid())
+  companyId              String             @map("company_id")
+  websiteId              String             @map("website_id")
+  createdById            String             @map("created_by_id")
+  articleId              String?            @unique @map("article_id")
+  contentSource          ScheduledContentSource @default(MANUAL) @map("content_source")
+  topicFocusId           String?                @map("topic_focus_id")
+  topic                   String?
+  primaryKeyword          String?                @map("primary_keyword")
+  additionalInstructions String?                @map("additional_instructions")
+  scheduledAt            DateTime               @map("scheduled_at")
+  timezone               String                 @default("Asia/Bangkok")
+  action                 ScheduledJobAction     @default(GENERATE_AND_DRAFT)
+  status                 ScheduledJobStatus @default(PENDING)
+  lastError              String?            @map("last_error")
+  startedAt              DateTime?          @map("started_at")
+  completedAt            DateTime?          @map("completed_at")
+  createdAt              DateTime           @default(now()) @map("created_at")
+  updatedAt              DateTime           @updatedAt @map("updated_at")
+
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  website   Website  @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  createdBy User     @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  article    Article?        @relation(fields: [articleId], references: [id], onDelete: SetNull)
+  topicFocus BlogTopicFocus? @relation(fields: [topicFocusId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([websiteId])
+  @@index([topicFocusId])
+  @@index([status, scheduledAt])
+  @@map("scheduled_jobs")
+}
+
+
+model BlogTopicFocus {
+  id          String    @id @default(cuid())
+  websiteId   String    @map("website_id")
+  title       String
+  focusTopic  String    @map("focus_topic")
+  keywords    String[]  @default([])
+  angle       String?
+  contentFormat ContentFormat @default(AUTO) @map("content_format")
+  targetWordMin Int      @default(700) @map("target_word_min")
+  targetWordMax Int      @default(1000) @map("target_word_max")
+  suggestedSections Int? @map("suggested_sections")
+  priority    Int       @default(5)
+  active      Boolean   @default(true)
+  startDate   DateTime? @db.Date @map("start_date")
+  endDate     DateTime? @db.Date @map("end_date")
+  notes       String?
+  lastUsedAt  DateTime? @map("last_used_at")
+  useCount    Int       @default(0) @map("use_count")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  website       Website        @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  scheduledJobs ScheduledJob[]
+
+  @@index([websiteId])
+  @@index([active])
+  @@index([startDate, endDate])
+  @@map("blog_topic_focus")
+}
+
+
+model InternalLink {
+  id                  String             @id @default(cuid())
+  websiteId           String             @map("website_id")
+  pageTitle           String             @map("page_title")
+  url                 String
+  targetKeywords      String[]           @default([]) @map("target_keywords")
+  anchorSuggestions   String[]           @default([]) @map("anchor_suggestions")
+  contentType         String?            @map("content_type")
+  priority            Int                @default(5)
+  active              Boolean            @default(true)
+  source              InternalLinkSource @default(MANUAL)
+  wordpressObjectId   Int?               @map("wordpress_object_id")
+  wordpressObjectType String?            @map("wordpress_object_type")
+  useCount            Int                @default(0) @map("use_count")
+  lastUsedAt          DateTime?          @map("last_used_at")
+  lastSyncedAt        DateTime?          @map("last_synced_at")
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+
+  website      Website               @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  articleLinks ArticleInternalLink[]
+
+  @@unique([websiteId, url])
+  @@index([websiteId])
+  @@index([active])
+  @@index([source])
+  @@map("internal_links")
+}
+
+model ArticleInternalLink {
+  id             String   @id @default(cuid())
+  articleId      String   @map("article_id")
+  internalLinkId String   @map("internal_link_id")
+  anchorText     String?  @map("anchor_text")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  article      Article      @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  internalLink InternalLink @relation(fields: [internalLinkId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, internalLinkId])
+  @@index([articleId])
+  @@index([internalLinkId])
+  @@map("article_internal_links")
+}
+
+
+model ImageAsset {
+  id                String   @id @default(cuid())
+  websiteId         String   @map("website_id")
+  wordpressMediaId  Int      @map("wordpress_media_id")
+  title             String
+  sourceUrl         String   @map("source_url")
+  altText           String?  @map("alt_text")
+  caption           String?
+  description       String?
+  keywords          String[] @default([])
+  mimeType          String?  @map("mime_type")
+  width             Int?
+  height            Int?
+  priority          Int      @default(5)
+  active            Boolean  @default(true)
+  selectionReady    Boolean  @default(false) @map("selection_ready")
+  useCount          Int      @default(0) @map("use_count")
+  lastUsedAt        DateTime? @map("last_used_at")
+  lastSyncedAt      DateTime? @map("last_synced_at")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  website       Website        @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  articleImages ArticleImage[]
+
+  @@unique([websiteId, wordpressMediaId])
+  @@index([websiteId])
+  @@index([active])
+  @@index([selectionReady])
+  @@map("image_assets")
+}
+
+model ArticleImage {
+  id           String           @id @default(cuid())
+  articleId    String           @map("article_id")
+  imageAssetId String           @map("image_asset_id")
+  role         ArticleImageRole
+  sortOrder    Int              @default(0) @map("sort_order")
+  altText      String?          @map("alt_text")
+  createdAt    DateTime         @default(now()) @map("created_at")
+
+  article    Article    @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  imageAsset ImageAsset @relation(fields: [imageAssetId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, imageAssetId])
+  @@index([articleId, role, sortOrder])
+  @@map("article_images")
 }

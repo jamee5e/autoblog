@@ -1,0 +1,362 @@
+export type UserRole = "ADMIN" | "EDITOR";
+
+export interface AuthUser {
+  id: string;
+  companyId: string;
+  email: string;
+  name: string;
+  role: UserRole;
+}
+
+export interface Website {
+  id: string;
+  companyId: string;
+  name: string;
+  wordpressUrl: string;
+  wordpressUsername: string;
+  defaultAuthor: string | null;
+  defaultCategory: string | null;
+  status: "ACTIVE" | "INACTIVE";
+  createdAt: string;
+}
+
+export interface ResearchFact {
+  fact: string;
+  confidence: "high" | "medium" | "low";
+  verificationNeeded: boolean;
+}
+
+export interface ResearchSection {
+  heading: string;
+  purpose: string;
+}
+
+export interface ResearchBrief {
+  searchIntent: string;
+  targetAudience: string;
+  contentAngle: string;
+  keyQuestions: string[];
+  keyFacts: ResearchFact[];
+  recommendedSections: ResearchSection[];
+  relatedKeywords: string[];
+  entities: string[];
+  notesForWriter: string[];
+}
+
+export interface ResearchUsage {
+  inputTokens: number | null;
+  outputTokens: number | null;
+  totalTokens: number | null;
+}
+
+export interface ResearchResponse {
+  articleId: string;
+  status: string;
+  model: string;
+  usage: ResearchUsage;
+  research: ResearchBrief;
+}
+
+export type QualityDecision = "PASS" | "REVISION_REQUIRED";
+
+export interface QualityIssue {
+  category: "SEO" | "FACTUAL" | "READABILITY" | "BRAND" | "STRUCTURE" | "OTHER";
+  severity: "HIGH" | "MEDIUM" | "LOW";
+  message: string;
+  suggestion: string;
+}
+
+export interface QualityReview {
+  decision: QualityDecision;
+  seoScore: number;
+  qualityScore: number;
+  metaDescription: string;
+  summary: string;
+  issues: QualityIssue[];
+  revisionInstructions: string[];
+}
+
+export interface OrchestrationResponse {
+  articleId: string;
+  status: string;
+  decision: QualityDecision;
+  revisionCount: number;
+  maxRevisions: number;
+  topicFocus?: {
+    id: string;
+    title: string;
+    focusTopic: string;
+    priority: number;
+    contentFormat: ContentFormat;
+    targetWordMin: number;
+    targetWordMax: number;
+    suggestedSections: number | null;
+  };
+  research: {
+    model: string;
+    usage: ResearchUsage;
+  };
+  writer: {
+    model: string;
+    usage: ResearchUsage;
+  };
+  quality: {
+    model: string;
+    usage: ResearchUsage;
+    review: QualityReview;
+  };
+}
+
+export type ContentFormat =
+  | "AUTO"
+  | "LIST_GUIDE"
+  | "DESTINATION_GUIDE"
+  | "COMPARISON"
+  | "PLANNING_GUIDE";
+
+export type ScheduledJobStatus =
+  | "PENDING"
+  | "RUNNING"
+  | "COMPLETED"
+  | "FAILED"
+  | "CANCELLED";
+
+export type ScheduledJobAction =
+  | "GENERATE_ONLY"
+  | "GENERATE_AND_DRAFT";
+
+export type ScheduledContentSource =
+  | "MANUAL"
+  | "TOPIC_FOCUS_AUTO"
+  | "TOPIC_FOCUS_SELECTED";
+
+export interface ScheduledJob {
+  id: string;
+  websiteId: string;
+  contentSource: ScheduledContentSource;
+  topicFocusId: string | null;
+  topic: string | null;
+  primaryKeyword: string | null;
+  additionalInstructions: string | null;
+  scheduledAt: string;
+  timezone: string;
+  action: ScheduledJobAction;
+  status: ScheduledJobStatus;
+  lastError: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  website: {
+    name: string;
+  };
+  topicFocus: {
+    id: string;
+    title: string;
+    focusTopic: string;
+    priority: number;
+  } | null;
+  article: {
+    id: string;
+    status: string;
+    title: string | null;
+    wordpressPostId: string | null;
+    wordpressUrl: string | null;
+  } | null;
+}
+
+export interface InternalLink {
+  id: string;
+  websiteId: string;
+  pageTitle: string;
+  url: string;
+  targetKeywords: string[];
+  anchorSuggestions: string[];
+  contentType: string | null;
+  priority: number;
+  active: boolean;
+  source: "MANUAL" | "WORDPRESS";
+  wordpressObjectId: number | null;
+  wordpressObjectType: string | null;
+  useCount: number;
+  lastUsedAt: string | null;
+  lastSyncedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  website: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface ImageAsset {
+  id: string;
+  websiteId: string;
+  wordpressMediaId: number;
+  title: string;
+  sourceUrl: string;
+  altText: string | null;
+  caption: string | null;
+  description: string | null;
+  keywords: string[];
+  mimeType: string | null;
+  width: number | null;
+  height: number | null;
+  priority: number;
+  active: boolean;
+  selectionReady: boolean;
+  useCount: number;
+  lastUsedAt: string | null;
+  lastSyncedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  website: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface ArticleImage {
+  id: string;
+  role: "FEATURED" | "INLINE";
+  sortOrder: number;
+  altText: string | null;
+  imageAsset: {
+    id: string;
+    wordpressMediaId: number;
+    title: string;
+    sourceUrl: string;
+    altText: string | null;
+    keywords: string[];
+    mimeType: string | null;
+    width: number | null;
+    height: number | null;
+    priority: number;
+  };
+}
+
+export interface ArticleCtaData {
+  heading: string;
+  description: string;
+  buttonText: string;
+  url: string;
+  internalLinkId: string;
+}
+
+export interface ArticleInternalLink {
+  id: string;
+  anchorText: string | null;
+  internalLink: {
+    id: string;
+    pageTitle: string;
+    url: string;
+    contentType: string | null;
+    priority: number;
+  };
+}
+
+export interface BlogTopicFocus {
+  id: string;
+  websiteId: string;
+  title: string;
+  focusTopic: string;
+  keywords: string[];
+  angle: string | null;
+  contentFormat: ContentFormat;
+  targetWordMin: number;
+  targetWordMax: number;
+  suggestedSections: number | null;
+  priority: number;
+  active: boolean;
+  startDate: string | null;
+  endDate: string | null;
+  notes: string | null;
+  lastUsedAt: string | null;
+  useCount: number;
+  createdAt: string;
+  updatedAt: string;
+  website: {
+    id: string;
+    name: string;
+  };
+}
+
+export interface ArticleSummary {
+  id: string;
+  topic: string;
+  title: string | null;
+  website: string;
+  primaryKeyword: string;
+  seoScore: number | null;
+  status: string;
+  createdAt: string;
+}
+
+export interface ArticlePreview {
+  id: string;
+  topic: string;
+  primaryKeyword: string;
+  additionalInstructions: string | null;
+  researchData: ResearchBrief | null;
+  qualityData: QualityReview | null;
+  qualityScore: number | null;
+  revisionCount: number;
+  website: string;
+  researchRun: {
+    model: string;
+    status: string;
+    inputTokens: number | null;
+    outputTokens: number | null;
+    completedAt: string | null;
+  } | null;
+  writerRun: {
+    model: string;
+    status: string;
+    inputTokens: number | null;
+    outputTokens: number | null;
+    completedAt: string | null;
+  } | null;
+  qualityRun: {
+    model: string;
+    status: string;
+    inputTokens: number | null;
+    outputTokens: number | null;
+    completedAt: string | null;
+  } | null;
+  title: string | null;
+  slug: string | null;
+  excerpt: string | null;
+  metaDescription: string | null;
+  ctaData: ArticleCtaData | null;
+  contentFormat: ContentFormat;
+  targetWordMin: number;
+  targetWordMax: number;
+  suggestedSections: number | null;
+  seoScore: number | null;
+  content: string | null;
+  status: string;
+  wordpressPostId: string | null;
+  wordpressUrl: string | null;
+  publishedAt: string | null;
+  createdAt: string;
+  internalLinks: ArticleInternalLink[];
+  images: ArticleImage[];
+}
+
+export interface SystemLog {
+  id: string;
+  createdAt: string;
+  level: "DEBUG" | "INFO" | "WARN" | "ERROR";
+  module: string;
+  message: string;
+  metadata: Record<string, unknown> | null;
+}
+
+export interface ApiListResponse<T> {
+  success: boolean;
+  data: T[];
+}
+
+export interface ApiItemResponse<T> {
+  success: boolean;
+  data: T;
+}

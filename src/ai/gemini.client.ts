@@ -1,0 +1,32 @@
+import { env } from "../config/env";
+import { HttpError } from "../errors/http.error";
+
+export const getGeminiClient = async () => {
+  if (!env.GEMINI_API_KEY) {
+    throw new HttpError(503, "Gemini API is not configured");
+  }
+
+  const { GoogleGenAI } = await import("@google/genai");
+
+  return new GoogleGenAI({
+    apiKey: env.GEMINI_API_KEY
+  });
+};
+
+export const getGeminiModel = (): string => env.GEMINI_MODEL;
+
+export const getGeminiResearchFallbackModel = (): string =>
+  env.GEMINI_RESEARCH_FALLBACK_MODEL;
+
+export const getGeminiWriterModel = (): string =>
+  env.GEMINI_WRITER_MODEL ?? env.GEMINI_MODEL;
+
+export const getGeminiWriterFallbackModel = (): string =>
+  env.GEMINI_WRITER_FALLBACK_MODEL;
+
+
+export const getGeminiQualityModel = (): string =>
+  env.GEMINI_QUALITY_MODEL ?? env.GEMINI_MODEL;
+
+export const getGeminiQualityFallbackModel = (): string =>
+  env.GEMINI_QUALITY_FALLBACK_MODEL;
