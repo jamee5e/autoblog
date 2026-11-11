@@ -1814,6 +1814,11 @@ details > summary {
   line-height: 1.45;
 }
 
+.schedule-main .schedule-retry {
+  color: #7a5b12;
+  font-weight: 750;
+}
+
 .schedule-main .schedule-error {
   color: #9a4841;
 }
