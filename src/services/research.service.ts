@@ -28,38 +28,64 @@ export interface CreateResearchInput {
 const toJsonValue = (value: unknown): Prisma.InputJsonValue =>
   JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 
-export const createArticleResearch = async (input: CreateResearchInput) => {
-  const website = await prisma.website.findFirst({
+const toResearchHttpError = (
+  error: unknown,
+  articleId: string
+): HttpError => {
+  if (error instanceof HttpError) {
+    return new HttpError(error.statusCode, error.message, {
+      phase: "RESEARCH",
+      articleId,
+      providerDetails: error.details
+    });
+  }
+
+  return new HttpError(502, "Gemini research failed", {
+    phase: "RESEARCH",
+    articleId
+  });
+};
+
+const runResearchForArticle = async (params: {
+  companyId: string;
+  articleId: string;
+}) => {
+  const article = await prisma.article.findFirst({
     where: {
-      id: input.websiteId,
-      companyId: input.companyId
+      id: params.articleId,
+      website: {
+        companyId: params.companyId
+      }
     },
     include: {
-      brandProfiles: {
-        orderBy: { createdAt: "asc" },
-        take: 1
+      website: {
+        include: {
+          brandProfiles: {
+            orderBy: { createdAt: "asc" },
+            take: 1
+          }
+        }
       }
     }
   });
 
-  if (!website) {
-    throw new HttpError(404, "Website not found");
+  if (!article) {
+    throw new HttpError(404, "Article not found");
   }
 
-  const brandProfile = website.brandProfiles[0];
+  const brandProfile = article.website.brandProfiles[0];
   const model = getGeminiModel();
 
-  const article = await prisma.article.create({
+  await prisma.aIRun.updateMany({
+    where: {
+      articleId: article.id,
+      agentType: AIAgentType.RESEARCH,
+      status: AIRunStatus.RUNNING
+    },
     data: {
-      websiteId: website.id,
-      topic: input.topic,
-      primaryKeyword: input.primaryKeyword,
-      additionalInstructions: input.additionalInstructions || null,
-      contentFormat: input.contentFormat ?? ContentFormat.AUTO,
-      targetWordMin: input.targetWordMin ?? 700,
-      targetWordMax: input.targetWordMax ?? 1000,
-      suggestedSections: input.suggestedSections ?? null,
-      status: ArticleStatus.RESEARCHING
+      status: AIRunStatus.FAILED,
+      errorMessage: "Superseded by a new research run",
+      completedAt: new Date()
     }
   });
 
@@ -73,17 +99,22 @@ export const createArticleResearch = async (input: CreateResearchInput) => {
     }
   });
 
+  await prisma.article.update({
+    where: { id: article.id },
+    data: { status: ArticleStatus.RESEARCHING }
+  });
+
   try {
     const result = await runResearchAgent({
-      websiteName: website.name,
-      wordpressUrl: website.wordpressUrl,
-      topic: input.topic,
-      primaryKeyword: input.primaryKeyword,
-      additionalInstructions: input.additionalInstructions,
-      contentFormat: input.contentFormat,
-      targetWordMin: input.targetWordMin,
-      targetWordMax: input.targetWordMax,
-      suggestedSections: input.suggestedSections,
+      websiteName: article.website.name,
+      wordpressUrl: article.website.wordpressUrl,
+      topic: article.topic,
+      primaryKeyword: article.primaryKeyword,
+      additionalInstructions: article.additionalInstructions ?? undefined,
+      contentFormat: article.contentFormat,
+      targetWordMin: article.targetWordMin,
+      targetWordMax: article.targetWordMax,
+      suggestedSections: article.suggestedSections,
       language: brandProfile?.language,
       brandContext: brandProfile
         ? {
@@ -122,7 +153,7 @@ export const createArticleResearch = async (input: CreateResearchInput) => {
       message: "Gemini research completed",
       metadata: {
         articleId: article.id,
-        websiteId: website.id,
+        websiteId: article.websiteId,
         model: result.model,
         inputTokens: result.usage.inputTokens,
         outputTokens: result.usage.outputTokens,
@@ -138,8 +169,7 @@ export const createArticleResearch = async (input: CreateResearchInput) => {
       research: result.research
     };
   } catch (error) {
-    const safeMessage =
-      error instanceof HttpError ? error.message : "Gemini research failed";
+    const wrappedError = toResearchHttpError(error, article.id);
 
     await prisma.$transaction([
       prisma.article.update({
@@ -150,7 +180,7 @@ export const createArticleResearch = async (input: CreateResearchInput) => {
         where: { id: aiRun.id },
         data: {
           status: AIRunStatus.FAILED,
-          errorMessage: safeMessage,
+          errorMessage: wrappedError.message,
           completedAt: new Date()
         }
       })
@@ -159,19 +189,78 @@ export const createArticleResearch = async (input: CreateResearchInput) => {
     await createSystemLog({
       module: "gemini-research",
       level: SystemLogLevel.ERROR,
-      message: safeMessage,
+      message: wrappedError.message,
       metadata: {
         articleId: article.id,
-        websiteId: website.id,
+        websiteId: article.websiteId,
         model,
-        details: error instanceof HttpError ? error.details : undefined
+        details: wrappedError.details
       }
     });
 
-    if (error instanceof HttpError) {
-      throw error;
-    }
-
-    throw new HttpError(502, "Gemini research failed");
+    throw wrappedError;
   }
+};
+
+export const createArticleResearch = async (input: CreateResearchInput) => {
+  const website = await prisma.website.findFirst({
+    where: {
+      id: input.websiteId,
+      companyId: input.companyId
+    },
+    select: {
+      id: true
+    }
+  });
+
+  if (!website) {
+    throw new HttpError(404, "Website not found");
+  }
+
+  const article = await prisma.article.create({
+    data: {
+      websiteId: website.id,
+      topic: input.topic,
+      primaryKeyword: input.primaryKeyword,
+      additionalInstructions: input.additionalInstructions || null,
+      contentFormat: input.contentFormat ?? ContentFormat.AUTO,
+      targetWordMin: input.targetWordMin ?? 700,
+      targetWordMax: input.targetWordMax ?? 1000,
+      suggestedSections: input.suggestedSections ?? null,
+      status: ArticleStatus.RESEARCHING
+    }
+  });
+
+  return runResearchForArticle({
+    companyId: input.companyId,
+    articleId: article.id
+  });
+};
+
+export const retryArticleResearch = async (input: {
+  companyId: string;
+  articleId: string;
+}) => {
+  const article = await prisma.article.findFirst({
+    where: {
+      id: input.articleId,
+      website: {
+        companyId: input.companyId
+      }
+    },
+    select: {
+      id: true,
+      researchData: true
+    }
+  });
+
+  if (!article) {
+    throw new HttpError(404, "Article not found");
+  }
+
+  if (article.researchData) {
+    throw new HttpError(409, "Article research is already completed");
+  }
+
+  return runResearchForArticle(input);
 };
