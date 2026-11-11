@@ -142,6 +142,8 @@ export interface ScheduledJob {
   timezone: string;
   action: ScheduledJobAction;
   status: ScheduledJobStatus;
+  retryCount: number;
+  maxRetries: number;
   lastError: string | null;
   startedAt: string | null;
   completedAt: string | null;
