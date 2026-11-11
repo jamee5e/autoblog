@@ -288,6 +288,8 @@ model ScheduledJob {
   timezone               String                 @default("Asia/Bangkok")
   action                 ScheduledJobAction     @default(GENERATE_AND_DRAFT)
   status                 ScheduledJobStatus @default(PENDING)
+  retryCount             Int                @default(0) @map("retry_count")
+  maxRetries             Int                @default(2) @map("max_retries")
   lastError              String?            @map("last_error")
   startedAt              DateTime?          @map("started_at")
   completedAt            DateTime?          @map("completed_at")
