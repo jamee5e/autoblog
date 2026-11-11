@@ -7,7 +7,11 @@ import {
 import { prisma } from "../config/database";
 import { HttpError } from "../errors/http.error";
 import { createSystemLog } from "./system-log.service";
-import { createArticleResearch, CreateResearchInput } from "./research.service";
+import {
+  createArticleResearch,
+  CreateResearchInput,
+  retryArticleResearch
+} from "./research.service";
 import { writeArticleDraft } from "./writer.service";
 import {
   reviewArticleQuality,
@@ -22,9 +26,15 @@ import {
 
 export interface OrchestrateArticleInput extends CreateResearchInput {}
 
-export const orchestrateArticle = async (input: OrchestrateArticleInput) => {
-  const research = await createArticleResearch(input);
+type ResearchResult = Awaited<ReturnType<typeof createArticleResearch>>;
 
+const runWorkflowAfterResearch = async (
+  input: {
+    companyId: string;
+    websiteId: string;
+  },
+  research: ResearchResult
+) => {
   const orchestratorRun = await prisma.aIRun.create({
     data: {
       articleId: research.articleId,
@@ -128,13 +138,50 @@ export const orchestrateArticle = async (input: OrchestrateArticleInput) => {
     });
 
     if (error instanceof HttpError) {
-      throw error;
+      throw new HttpError(error.statusCode, error.message, {
+        phase: "POST_RESEARCH",
+        articleId: research.articleId,
+        providerDetails: error.details
+      });
     }
 
-    throw new HttpError(502, "AI orchestration failed");
+    throw new HttpError(502, "AI orchestration failed", {
+      phase: "POST_RESEARCH",
+      articleId: research.articleId
+    });
   }
 };
 
+export const orchestrateArticle = async (input: OrchestrateArticleInput) => {
+  const research = await createArticleResearch(input);
+
+  return runWorkflowAfterResearch(
+    {
+      companyId: input.companyId,
+      websiteId: input.websiteId
+    },
+    research
+  );
+};
+
+export const resumeArticleWorkflow = async (input: {
+  companyId: string;
+  websiteId: string;
+  articleId: string;
+}) => {
+  const research = await retryArticleResearch({
+    companyId: input.companyId,
+    articleId: input.articleId
+  });
+
+  return runWorkflowAfterResearch(
+    {
+      companyId: input.companyId,
+      websiteId: input.websiteId
+    },
+    research
+  );
+};
 
 export interface OrchestrateTopicFocusInput {
   companyId: string;
@@ -165,44 +212,57 @@ export const orchestrateArticleFromTopicFocus = async (
 
   const brief = buildResearchInputFromTopicFocus(focus);
 
-  const result = await orchestrateArticle({
-    companyId: input.companyId,
-    websiteId: input.websiteId,
-    topic: brief.topic,
-    primaryKeyword: brief.primaryKeyword,
-    additionalInstructions: brief.additionalInstructions,
-    contentFormat: brief.contentFormat,
-    targetWordMin: brief.targetWordMin,
-    targetWordMax: brief.targetWordMax,
-    suggestedSections: brief.suggestedSections
-  });
-
-  await markTopicFocusUsed(focus.id);
-
-  await createSystemLog({
-    module: "topic-focus",
-    level: SystemLogLevel.INFO,
-    message: "Blog Topic Focus used for full AI workflow",
-    metadata: {
-      articleId: result.articleId,
+  try {
+    const result = await orchestrateArticle({
+      companyId: input.companyId,
       websiteId: input.websiteId,
-      topicFocusId: focus.id,
-      topicFocusTitle: focus.title,
-      autoSelected: !input.topicFocusId
-    }
-  });
+      topic: brief.topic,
+      primaryKeyword: brief.primaryKeyword,
+      additionalInstructions: brief.additionalInstructions,
+      contentFormat: brief.contentFormat,
+      targetWordMin: brief.targetWordMin,
+      targetWordMax: brief.targetWordMax,
+      suggestedSections: brief.suggestedSections
+    });
 
-  return {
-    ...result,
-    topicFocus: {
-      id: focus.id,
-      title: focus.title,
-      focusTopic: focus.focusTopic,
-      priority: focus.priority,
-      contentFormat: focus.contentFormat,
-      targetWordMin: focus.targetWordMin,
-      targetWordMax: focus.targetWordMax,
-      suggestedSections: focus.suggestedSections
+    await markTopicFocusUsed(focus.id);
+
+    await createSystemLog({
+      module: "topic-focus",
+      level: SystemLogLevel.INFO,
+      message: "Blog Topic Focus used for full AI workflow",
+      metadata: {
+        articleId: result.articleId,
+        websiteId: input.websiteId,
+        topicFocusId: focus.id,
+        topicFocusTitle: focus.title,
+        autoSelected: !input.topicFocusId
+      }
+    });
+
+    return {
+      ...result,
+      topicFocus: {
+        id: focus.id,
+        title: focus.title,
+        focusTopic: focus.focusTopic,
+        priority: focus.priority,
+        contentFormat: focus.contentFormat,
+        targetWordMin: focus.targetWordMin,
+        targetWordMax: focus.targetWordMax,
+        suggestedSections: focus.suggestedSections
+      }
+    };
+  } catch (error) {
+    if (error instanceof HttpError) {
+      throw new HttpError(error.statusCode, error.message, {
+        ...(error.details && typeof error.details === "object"
+          ? error.details
+          : { providerDetails: error.details }),
+        topicFocusId: focus.id
+      });
     }
-  };
+
+    throw error;
+  }
 };
