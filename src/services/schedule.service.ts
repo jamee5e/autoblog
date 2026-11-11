@@ -8,10 +8,12 @@ import { prisma } from "../config/database";
 import { HttpError } from "../errors/http.error";
 import {
   orchestrateArticle,
-  orchestrateArticleFromTopicFocus
+  orchestrateArticleFromTopicFocus,
+  resumeArticleWorkflow
 } from "./orchestration.service";
 import { saveArticleToWordPressDraft } from "./publication.service";
 import { createSystemLog } from "./system-log.service";
+import { markTopicFocusUsed } from "./topic-focus.service";
 
 export interface CreateScheduledJobInput {
   companyId: string;
@@ -33,6 +35,33 @@ export interface CreateRecurringScheduledJobsInput
 }
 
 const MAX_RECURRING_JOBS = 200;
+const AUTO_RETRY_DELAYS_MS = [5 * 60 * 1000, 15 * 60 * 1000];
+
+const getErrorDetails = (error: unknown): Record<string, unknown> => {
+  if (
+    error instanceof HttpError &&
+    error.details &&
+    typeof error.details === "object" &&
+    !Array.isArray(error.details)
+  ) {
+    return error.details as Record<string, unknown>;
+  }
+
+  return {};
+};
+
+const isRetryableResearchError = (error: unknown): boolean => {
+  if (!(error instanceof HttpError)) return false;
+
+  const details = getErrorDetails(error);
+  const phase = details.phase;
+  const message = error.message;
+
+  if (phase !== "RESEARCH") return false;
+  if (/daily quota exceeded/i.test(message)) return false;
+
+  return [429, 502, 503, 504].includes(error.statusCode);
+};
 
 export const createScheduledJob = async (input: CreateScheduledJobInput) => {
   const website = await prisma.website.findFirst({
@@ -281,8 +310,22 @@ const executeScheduledJob = async (scheduledJobId: string): Promise<void> => {
 
     let result: Awaited<ReturnType<typeof orchestrateArticle>>;
     let resolvedTopicFocusId = job.topicFocusId;
+    const isRetryResume = job.retryCount > 0 && Boolean(job.articleId);
 
-    if (job.contentSource === ScheduledContentSource.MANUAL) {
+    if (isRetryResume && job.articleId) {
+      result = await resumeArticleWorkflow({
+        companyId: job.companyId,
+        websiteId: job.websiteId,
+        articleId: job.articleId
+      });
+
+      if (
+        job.contentSource !== ScheduledContentSource.MANUAL &&
+        job.topicFocusId
+      ) {
+        await markTopicFocusUsed(job.topicFocusId);
+      }
+    } else if (job.contentSource === ScheduledContentSource.MANUAL) {
       result = await orchestrateArticle({
         companyId: job.companyId,
         websiteId: job.websiteId,
@@ -344,6 +387,7 @@ const executeScheduledJob = async (scheduledJobId: string): Promise<void> => {
         finalStatus: result.status,
         decision: result.decision,
         revisionCount: result.revisionCount,
+        retryCount: job.retryCount,
         wordpressDraftCreated
       }
     });
@@ -354,6 +398,62 @@ const executeScheduledJob = async (scheduledJobId: string): Promise<void> => {
         : error instanceof Error
           ? error.message
           : "Scheduled article workflow failed";
+
+    const details = getErrorDetails(error);
+    const retryable =
+      isRetryableResearchError(error) &&
+      job.retryCount < job.maxRetries;
+
+    if (retryable) {
+      const retryDelayMs =
+        AUTO_RETRY_DELAYS_MS[
+          Math.min(job.retryCount, AUTO_RETRY_DELAYS_MS.length - 1)
+        ];
+      const nextRetryAt = new Date(Date.now() + retryDelayMs);
+      const nextRetryCount = job.retryCount + 1;
+      const articleId =
+        typeof details.articleId === "string"
+          ? details.articleId
+          : job.articleId;
+      const topicFocusId =
+        typeof details.topicFocusId === "string"
+          ? details.topicFocusId
+          : job.topicFocusId;
+
+      await prisma.scheduledJob.update({
+        where: { id: job.id },
+        data: {
+          status: ScheduledJobStatus.PENDING,
+          retryCount: nextRetryCount,
+          scheduledAt: nextRetryAt,
+          startedAt: null,
+          completedAt: null,
+          lastError:
+            `Auto retry ${nextRetryCount}/${job.maxRetries} scheduled · ${message}`,
+          articleId,
+          topicFocusId
+        }
+      });
+
+      await createSystemLog({
+        module: "scheduler",
+        level: SystemLogLevel.WARN,
+        message: "Scheduled article research queued for automatic retry",
+        metadata: {
+          scheduledJobId: job.id,
+          websiteId: job.websiteId,
+          articleId,
+          topicFocusId,
+          retryCount: nextRetryCount,
+          maxRetries: job.maxRetries,
+          nextRetryAt,
+          retryDelayMinutes: Math.round(retryDelayMs / 60_000),
+          errorMessage: message
+        }
+      });
+
+      return;
+    }
 
     await prisma.scheduledJob.update({
       where: { id: job.id },
@@ -371,6 +471,8 @@ const executeScheduledJob = async (scheduledJobId: string): Promise<void> => {
       metadata: {
         scheduledJobId: job.id,
         websiteId: job.websiteId,
+        retryCount: job.retryCount,
+        maxRetries: job.maxRetries,
         errorMessage: message
       }
     });
