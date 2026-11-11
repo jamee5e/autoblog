@@ -1050,6 +1050,7 @@ onBeforeUnmount(() => {
         <strong>Live publishing remains manual.</strong>
         <span>
           Scheduler can run once or repeat on selected weekdays until the end date.
+          Temporary Gemini Research errors retry automatically after 5 and 15 minutes.
           After PASS it can create a WordPress Draft, but Admin still approves the final Publish.
         </span>
       </div>
@@ -1093,6 +1094,13 @@ onBeforeUnmount(() => {
               {{ formatScheduledAt(job.scheduledAt) }}
               · {{ job.timezone }}
               · {{ scheduleActionLabel(job.action) }}
+            </small>
+            <small
+              v-if="job.status === 'PENDING' && job.retryCount > 0"
+              class="schedule-retry"
+            >
+              Auto Retry {{ job.retryCount }}/{{ job.maxRetries }}
+              · next attempt at {{ formatScheduledAt(job.scheduledAt) }}
             </small>
             <small v-if="job.lastError" class="schedule-error">
               {{ job.lastError }}
