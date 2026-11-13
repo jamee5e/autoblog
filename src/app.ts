@@ -10,6 +10,10 @@ import { authRouter } from "./routes/auth.routes";
 import { authenticateRequest } from "./middlewares/auth.middleware";
 import { systemLogRouter } from "./routes/system-log.routes";
 import { articleRouter } from "./routes/article.routes";
+import { scheduleRouter } from "./routes/schedule.routes";
+import { topicFocusRouter } from "./routes/topic-focus.routes";
+import { internalLinkRouter } from "./routes/internal-link.routes";
+import { imageAssetRouter } from "./routes/image-asset.routes";
 
 export const app = express();
 
@@ -27,6 +31,10 @@ app.use("/api/websites", authenticateRequest, websiteRouter);
 app.use("/api/companies", authenticateRequest);
 app.use("/api/system-logs", authenticateRequest, systemLogRouter);
 app.use("/api/articles", authenticateRequest, articleRouter);
+app.use("/api/schedules", authenticateRequest, scheduleRouter);
+app.use("/api/topic-focuses", authenticateRequest, topicFocusRouter);
+app.use("/api/internal-links", authenticateRequest, internalLinkRouter);
+app.use("/api/image-assets", authenticateRequest, imageAssetRouter);
 
 app.get("/", (_req, res) => {
   res.redirect("/login");
